@@ -3,13 +3,20 @@ import 'package:file_picker/file_picker.dart';
 
 class PengaduanProvider with ChangeNotifier {
   String? _selectedArea;
+  String? _selectedKategori;
   String? get selectedArea => _selectedArea;
+  String? get selectedKategori => _selectedKategori;
 
   final List<String> _uploadMedia = [];
   List<String> get uploadMedia => _uploadMedia;
 
   void setSelectedArea(String? newValue) {
     _selectedArea = newValue;
+    notifyListeners();
+  }
+
+  void setSelectedKategori(String? newValue) {
+    _selectedKategori = newValue;
     notifyListeners();
   }
 
@@ -49,6 +56,7 @@ class PengaduanProvider with ChangeNotifier {
 
   void resetFrom() {
     _selectedArea = null;
+    _selectedKategori = null;
     _uploadMedia.clear();
     notifyListeners();
   }

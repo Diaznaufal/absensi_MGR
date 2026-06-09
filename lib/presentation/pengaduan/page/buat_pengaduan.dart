@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/Provider/pengaduan_provider.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/bloc/kantorOptions.dart';
+import 'package:flutter_absensi_app/presentation/pengaduan/bloc/kategoriOptions.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -116,6 +117,12 @@ class BuatPengaduan extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+                _kategoriLaporan(
+                  selectedValue: provider.selectedKategori,
+                  onChanged: (newValue) {
+                    provider.setSelectedKategori(newValue);
+                  },
                 ),
               ],
             ),
@@ -302,7 +309,7 @@ Widget _tempatKaryawan({
             ),
           ),
           hint: Text(
-            'Pilih area',
+            'Pilih Area',
             style: GoogleFonts.poppins(
                 fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
           ),
@@ -327,6 +334,89 @@ Widget _tempatKaryawan({
           ),
           value: selectedValue,
           items: kantorOptions.map((item) {
+            return DropdownMenuItem<String>(
+              value: item.value,
+              child: Text(item.title),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _kategoriLaporan({
+  required String? selectedValue,
+  required ValueChanged<String?> onChanged,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          const Icon(Icons.apartment),
+          const SizedBox(width: 10),
+          Text(
+            "Tempat",
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: DropdownButtonFormField2<String>(
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.grey.shade200,
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 10,
+              horizontal: 10,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Colors.grey.shade300,
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.black87, width: 1.5),
+            ),
+          ),
+          hint: Text(
+            'Pilih Kategori',
+            style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
+          ),
+          iconStyleData: const IconStyleData(
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.black87,
+            ),
+            iconSize: 26,
+          ),
+          dropdownStyleData: DropdownStyleData(
+            maxHeight: 155,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: Colors.white,
+            ),
+            elevation: 4,
+          ),
+          menuItemStyleData: const MenuItemStyleData(
+            height: 50,
+            padding: EdgeInsets.symmetric(horizontal: 16),
+          ),
+          value: selectedValue,
+          items: kategoriOptions.map((item) {
             return DropdownMenuItem<String>(
               value: item.value,
               child: Text(item.title),
