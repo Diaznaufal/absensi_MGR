@@ -13,12 +13,21 @@ class GetAllLeavesBloc extends Bloc<GetAllLeavesEvent, GetAllLeavesState> {
   GetAllLeavesBloc(
     this.datasource,
   ) : super(const _Initial()) {
+    // on<_GetAllLeaves>((event, emit) async {
+    //   emit(const _Loading());
+    //   final result = await datasource.getLeaves(status: event.status);
+    //   result.fold(
+    //     (l) => emit(_Error(l)),
+    //     (r) => emit(_Success(r)),
+    //   );
+    // });
     on<_GetAllLeaves>((event, emit) async {
-      emit(const _Loading());
-      final result = await datasource.getLeaves(status: event.status);
-      result.fold(
-        (l) => emit(_Error(l)),
-        (r) => emit(_Success(r)),
+      emit(
+        _Success(
+          LeaveResponseModel(
+            data: [],
+          ),
+        ),
       );
     });
   }

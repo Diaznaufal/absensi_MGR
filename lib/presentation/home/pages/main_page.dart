@@ -39,7 +39,8 @@ class _MainPageState extends State<MainPage> {
     return Container(
       decoration: BoxDecoration(
         color: Color(0xFF0A49B7),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(18), topRight: Radius.circular(18)),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),

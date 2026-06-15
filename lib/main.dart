@@ -21,6 +21,7 @@ import 'package:flutter_absensi_app/presentation/leaves/bloc/create_leave/create
 import 'package:flutter_absensi_app/presentation/leaves/bloc/leave_type/leave_type_bloc.dart';
 import 'package:flutter_absensi_app/presentation/leaves/bloc/leave_balance/leave_balance_bloc.dart';
 import 'package:flutter_absensi_app/presentation/leaves/bloc/get_all_leaves/get_all_leaves_bloc.dart';
+import 'package:flutter_absensi_app/presentation/leaves/provider/leave_provider.dart';
 import 'package:flutter_absensi_app/presentation/overtimes/blocs/get_overtimes/get_overtimes_bloc.dart';
 import 'package:flutter_absensi_app/presentation/overtimes/blocs/get_overtime_status/get_overtime_status_bloc.dart';
 import 'package:flutter_absensi_app/presentation/overtimes/blocs/start_overtime/start_overtime_bloc.dart';
@@ -130,6 +131,7 @@ class MyApp extends StatelessWidget {
           create: (context) => UpdateUserBloc(UserRemoteDatasource()),
         ),
         ChangeNotifierProvider(create: (_) => PengaduanProvider()),
+        ChangeNotifierProvider(create: (_) => LeaveProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

@@ -6,6 +6,7 @@ class kategoriModel {
 
 final List<kategoriModel> kategoriOptions = [
   kategoriModel(title: "Fasilitas Kantor", value: "1"),
-  kategoriModel(title: "Fasilitas Kantor", value: "2"),
-  kategoriModel(title: "Fasilitas Kantor", value: "3"),
+  kategoriModel(title: "Keamanan", value: "2"),
+  kategoriModel(title: "Lingkungan Kerja", value: "3"),
+  kategoriModel(title: "Lainnya", value: "4"),
 ];
