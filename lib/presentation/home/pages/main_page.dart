@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_absensi_app/presentation/penggajian/pages/Penggajian.dart';
+import 'package:flutter_absensi_app/presentation/penggajian/pages/penggajian.dart';
 import 'package:flutter_absensi_app/presentation/history/pages/history_page.dart';
 import 'package:flutter_absensi_app/presentation/home/pages/home_page.dart';
 import 'package:flutter_absensi_app/presentation/profile/pages/profile_page.dart';

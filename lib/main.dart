@@ -40,7 +40,7 @@ import 'presentation/auth/bloc/login/login_bloc.dart';
 import 'presentation/auth/pages/splash_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
-
+import 'presentation/overtimes/provider/overtime_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
@@ -131,7 +131,7 @@ class MyApp extends StatelessWidget {
           create: (context) => UpdateUserBloc(UserRemoteDatasource()),
         ),
         ChangeNotifierProvider(create: (_) => PengaduanProvider()),
-        ChangeNotifierProvider(create: (_) => LeaveProvider()),
+        ChangeNotifierProvider(create: (_) => LeaveProvider()),ChangeNotifierProvider(create: (_) => OvertimeProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

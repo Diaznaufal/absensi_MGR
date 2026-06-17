@@ -24,7 +24,7 @@ class AttendanceHistoryCard extends StatelessWidget {
     final config = _statusConfig(status);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -123,13 +123,6 @@ class AttendanceHistoryCard extends StatelessWidget {
                 ),
             ],
           ),
-          SizedBox(
-            width: 8,
-          ),
-          Icon(
-            Icons.keyboard_arrow_right,
-            size: 20,
-          )
         ],
       ),
     );

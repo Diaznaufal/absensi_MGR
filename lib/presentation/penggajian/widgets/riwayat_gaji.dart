@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../model/penggajian_model.dart';
 
 final rupiah = NumberFormat.currency(
   locale: 'id_ID',
@@ -8,21 +9,20 @@ final rupiah = NumberFormat.currency(
   decimalDigits: 0,
 );
 
-class riwayatGajiCard extends StatelessWidget {
-  final String day;
-  final String desc;
-  final int value;
+class RiwayatGajiCard extends StatelessWidget {
+  final gajimodel data;
+  final VoidCallback onTap; // Deteksi klik
 
-  const riwayatGajiCard({
+  const RiwayatGajiCard({
     super.key,
-    required this.day,
-    required this.desc,
-    required this.value,
+    required this.data,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      onTap: onTap, // Daftarkan fungsi tap di sini
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
@@ -35,9 +35,9 @@ class riwayatGajiCard extends StatelessWidget {
               width: 35,
               height: 35,
               decoration: BoxDecoration(
-                  color: Color(0xC2D8E4FD),
+                  color: const Color(0xC2D8E4FD),
                   borderRadius: BorderRadius.circular(5)),
-              child: Icon(
+              child: const Icon(
                 Icons.feed_outlined,
                 color: Color(0xFF0151E7),
                 size: 22,
@@ -49,14 +49,14 @@ class riwayatGajiCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    day,
+                    data.bulan,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    desc,
+                    data.tglBayar,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                     ),
@@ -68,19 +68,17 @@ class riwayatGajiCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  rupiah.format(value),
+                  rupiah.format(data.totalGaji - data.potongan),
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F8B4D),
+                    color: const Color(0xFF1F8B4D),
                   ),
                 ),
               ],
             ),
-            SizedBox(
-              width: 8,
-            ),
-            Icon(
+            const SizedBox(width: 8),
+            const Icon(
               Icons.keyboard_arrow_right,
               size: 20,
             )

@@ -430,6 +430,25 @@ class _HistoryPageState extends State<HistoryPage> {
                     color: const Color(0xFF253B80),
                   ),
                 ),
+                TextButton(
+                  onPressed: () {
+                    // Handle "Lihat Semua" button press
+                  },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size(10, 30),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerRight,
+                  ),
+                  child: Text(
+                    'Lihat Semua',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF4263F5),
+                  ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),

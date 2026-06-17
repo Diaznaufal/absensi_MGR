@@ -19,36 +19,9 @@ class LeavePage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A49B7),
         elevation: 0,
-        toolbarHeight: 0,
-      ),
-      backgroundColor: const Color(0xDEEFF0F2),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: Consumer<LeaveProvider>(
-                builder: (context, provider, child) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: _buildLeaveList(context, provider, dateFormatter),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      width: double.infinity,
-      decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
-      child: Row(
+        toolbarHeight: 60,
+        automaticallyImplyLeading: false,
+        title: Row(
         children: [
           InkWell(
             onTap: () => Navigator.pop(context),
@@ -74,6 +47,26 @@ class LeavePage extends StatelessWidget {
             ],
           ),
         ],
+      ),
+      ),
+      backgroundColor: const Color(0xDEEFF0F2),
+      body: SafeArea(
+        child: Column(
+          children: [
+      
+            Expanded(
+              child: Consumer<LeaveProvider>(
+                builder: (context, provider, child) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: _buildLeaveList(context, provider, dateFormatter),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -142,11 +135,11 @@ class LeavePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Leaves',
+                    Text('Total Pengajuan Cuti',
                         style: GoogleFonts.poppins(
                             fontSize: 16,
                             color: Colors.white.withOpacity(0.9))),
-                    Text('$totalLeaves request${totalLeaves == 1 ? '' : 's'}',
+                    Text('$totalLeaves Pengajuan${totalLeaves == 1 ? '' : ''}',
                         style: GoogleFonts.poppins(
                             fontSize: 26,
                             fontWeight: FontWeight.w700,
@@ -175,7 +168,7 @@ class LeavePage extends StatelessWidget {
                         builder: (context) => const AddLeavePage()));
               },
               icon: const Icon(Icons.add_circle_outline_rounded),
-              label: Text('Apply for Leave',
+              label: Text('Ajukan Cuti / Izin',
                   style: GoogleFonts.poppins(
                       fontSize: 16, fontWeight: FontWeight.w600)),
             ),
@@ -267,13 +260,13 @@ class LeavePage extends StatelessWidget {
                   ],
                 ),
                 const SpaceHeight(16),
-                _buildInfoRow(Icons.timelapse_rounded, 'Total Days',
-                    '${leave.totalDays} day${leave.totalDays == 1 ? '' : 's'}'),
+                _buildInfoRow(Icons.timelapse_rounded, 'Total Hari',
+                    '${leave.totalDays} hari${leave.totalDays == 1 ? '' : 's'}'),
                 const SpaceHeight(12),
-                _buildInfoRow(Icons.notes_rounded, 'Reason', leave.reason),
+                _buildInfoRow(Icons.notes_rounded, 'Alasan', leave.reason),
                 const SpaceHeight(12),
                 _buildInfoRow(
-                    Icons.verified_user_rounded, 'Approver', leave.approver),
+                    Icons.verified_user_rounded, 'Persetujuan', leave.approver),
                 if (leave.approvedAt != null) ...[
                   const SpaceHeight(12),
                   _buildInfoRow(Icons.event_available_rounded, 'Approved At',

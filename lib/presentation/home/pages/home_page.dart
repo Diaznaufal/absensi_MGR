@@ -668,7 +668,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             _buildModernButtonCuti(
               icon: Icons.event_busy_rounded,
               label: 'Izin / Cuti',
-              subtitle: 'Ajukan izin atau cuti kamu',
+              subtitle: 'Ajukan izin atau cuti anda',
               gradient: const LinearGradient(
                 colors: [Color(0xFFFFE5EA), Color(0xFFFFE5EA)],
               ),
@@ -681,7 +681,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             _buildModernButtonLembur(
               icon: Icons.more_time_rounded,
               label: 'Lembur',
-              subtitle: 'Ajukan lembur kerja kamu',
+              subtitle: 'Ajukan lembur kerja anda',
               gradient: const LinearGradient(
                 colors: [
                   Color(0xFFDCE7FF),
@@ -713,7 +713,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             _buildModernButtonLibur(
               icon: Icons.calendar_month,
               label: 'Libur Karyawan',
-              subtitle: 'Ajukan dan \nkelola jadwal libur kamu',
+              subtitle: 'Ajukan dan \nkelola jadwal libur anda',
               gradient: const LinearGradient(
                 colors: [
                   Color(0xFFE8D8FF),

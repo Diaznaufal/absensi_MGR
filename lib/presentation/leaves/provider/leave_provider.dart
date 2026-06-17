@@ -14,14 +14,14 @@ class LeaveProvider with ChangeNotifier {
 
   // Tipe cuti statis bawaan aplikasi
   final List<String> leaveTypes = [
-    'Annual Leave',
-    'Sick Leave',
-    'Emergency Leave',
-    'Unpaid Leave',
+    'Cuti Tahunan',
+    'Cuti Sakit',
+    'Cuti Darurat',
+    'Cuti Tanpa Bayaran',
   ];
 
   // --- State Formulir Pengajuan (Form-State) ---
-  String? _selectedLeaveType = 'Annual Leave'; // Default awal
+  String? _selectedLeaveType = 'Cuti Tahunan'; // Default awal
   DateTime? _startDate;
   DateTime? _endDate;
   File? _selectedFile;
@@ -113,7 +113,7 @@ class LeaveProvider with ChangeNotifier {
       totalDays: totalDays,
       attachmentPath: _selectedFile?.path,
       leaveType: _selectedLeaveType!,
-      approver: 'Awaiting assignment',
+      approver: 'menunggu persetujuan',
     );
 
     _listLeave.insert(0, newLeave);
@@ -140,7 +140,7 @@ class LeaveProvider with ChangeNotifier {
     } else if (lowerName.contains('emergency') ||
         lowerName.contains('darurat')) {
       return Icons.emergency_rounded;
-    } else if (lowerName.contains('unpaid')) {
+    } else if (lowerName.contains('tanpa bayaran') || lowerName.contains('unpaid')) {
       return Icons.money_off_rounded;
     }
     return Icons.event_note_rounded;
