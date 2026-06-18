@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_absensi_app/data/models/response/auth_response_model.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/components/image_picker_widget.dart';
+// Import komponen internal Anda
 import '../../../core/core.dart';
-import '../../../data/datasources/auth_local_datasource.dart';
-import '../../../data/models/request/user_request_model.dart';
-import '../bloc/get_user/get_user_bloc.dart';
-import '../bloc/update_user/update_user_bloc.dart';
+import '../../../core/components/image_picker_widget.dart';
 
 class UpdateProfilePage extends StatefulWidget {
   final User user;
@@ -22,210 +18,114 @@ class UpdateProfilePage extends StatefulWidget {
   State<UpdateProfilePage> createState() => _UpdateProfilePageState();
 }
 
-class _UpdateProfilePageState extends State<UpdateProfilePage>
-    with TickerProviderStateMixin {
-  TextEditingController? nameController;
-  TextEditingController? emailController;
-  TextEditingController? phoneController;
+class _UpdateProfilePageState extends State<UpdateProfilePage> {
+  // Controllers untuk Personal Details
+  late TextEditingController nameController;
+  late TextEditingController emailController;
+  late TextEditingController phoneController;
+  late TextEditingController addressController;
+
+  // Controllers untuk Emergency Contact
+  late TextEditingController emergencyNameController;
+  late TextEditingController emergencyRelationController;
+  late TextEditingController emergencyPhoneController;
+
   XFile? imageFile;
-  AuthResponseModel? authData;
-
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late AnimationController _scaleController;
-
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _scaleAnimation;
+  final Color primaryColor = const Color(0xFF1955AF);
 
   @override
   void initState() {
     super.initState();
+    // Inisialisasi controller dengan data yang ada atau mock data sesuai gambar
+    nameController =
+        TextEditingController(text: widget.user.name ?? 'John Doe');
+    emailController =
+        TextEditingController(text: widget.user.email ?? 'johndoe@example.com');
+    phoneController =
+        TextEditingController(text: widget.user.phone ?? '081234567890');
+    addressController = TextEditingController(
+        text: 'Jl. Merdeka No. 123, Kecamatan Sukajadi, Kota Bandung, 40111');
 
-    // Initialize animations
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeOutBack,
-    ));
-
-    // Start animations
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _fadeController.forward();
-        _slideController.forward();
-        _scaleController.forward();
-      }
-    });
-
-    loadData();
-    nameController = TextEditingController(text: widget.user.name ?? '');
-    emailController = TextEditingController(text: widget.user.email ?? '');
-    phoneController = TextEditingController(text: widget.user.phone ?? '');
-  }
-
-  loadData() async {
-    authData = await AuthLocalDatasource().getAuthData();
-    setState(() {});
+    emergencyNameController = TextEditingController(text: 'Ibu Jane Doe');
+    emergencyRelationController = TextEditingController(text: 'Ibu');
+    emergencyPhoneController = TextEditingController(text: '081298765432');
   }
 
   @override
   void dispose() {
-    nameController?.dispose();
-    emailController?.dispose();
-    phoneController?.dispose();
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scaleController.dispose();
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+    emergencyNameController.dispose();
+    emergencyRelationController.dispose();
+    emergencyPhoneController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: [0.0, 0.3, 1.0],
-            colors: [
-              Color(0xFF1e3c72), // Deep professional blue
-              Color(0xFF2a5298), // Professional blue
-              Colors.white,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Custom App Bar
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildModernAppBar(),
+      backgroundColor: Colors.grey[50],
+      body: Stack(
+        children: [
+          // 1. Background Gradient
+          Container(
+            height: 250,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [primaryColor, primaryColor.withOpacity(0.8)],
               ),
+            ),
+          ),
 
-              // Form Content
-              Expanded(
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          const SpaceHeight(20),
-
-                          // Profile Image Section
-                          _buildProfileImageSection(),
-
-                          const SpaceHeight(24),
-
-                          // Form Fields Section
-                          _buildFormFieldsSection(),
-
-                          const SpaceHeight(100), // Space for button
-                        ],
-                      ),
+          // 2. Main Content
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const SpaceHeight(10),
+                        _buildProfilePictureSection(),
+                        const SpaceHeight(20),
+                        _buildPersonalDetailsSection(),
+                        const SpaceHeight(20),
+                        _buildEmergencyContactSection(),
+                        const SpaceHeight(
+                            120), // Memberi ruang untuk tombol bawah
+                      ],
                     ),
                   ),
                 ),
-              ),
-
-              // Update Button
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
-                  margin: const EdgeInsets.all(20),
-                  child: _buildUpdateButton(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernAppBar() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          const SpaceWidth(16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Edit Profile',
-                  style: GoogleFonts.poppins(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  'Update your personal information',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
               ],
+            ),
+          ),
+
+          // 3. Bottom Button (Fixed)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: _buildSubmitButton(),
             ),
           ),
         ],
@@ -233,95 +133,198 @@ class _UpdateProfilePageState extends State<UpdateProfilePage>
     );
   }
 
-  Widget _buildProfileImageSection() {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+  // Header sesuai gambar dengan tombol back boxy
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white, size: 20),
             ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1e3c72), Color(0xFF3b82c9)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+          ),
+          const SpaceWidth(20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edit Profile',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
-                const SpaceWidth(16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Profile Picture',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      Text(
-                        'Upload or update your profile photo',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              Text(
+                'Update your personal information',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.9),
                 ),
-              ],
-            ),
-            const SpaceHeight(20),
-            ImagePickerWidget(
-              label: 'Choose Profile Image',
-              onChanged: (file) {
-                if (file == null) {
-                  return;
-                }
-                setState(() {
-                  imageFile = file;
-                });
-              },
-              imageUrl: widget.user.imageUrl,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFormFieldsSection() {
+  // Section Foto Profil
+  Widget _buildProfilePictureSection() {
+    return _buildCardWrapper(
+      icon: Icons.camera_alt_rounded,
+      title: 'Profile Picture',
+      subtitle: 'Upload or update your profile photo',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Choose Profile Image',
+              style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800])),
+          const SpaceHeight(12),
+          Row(
+            children: [
+              // Preview Box
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: imageFile != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child:
+                            Image.network(imageFile!.path, fit: BoxFit.cover),
+                      )
+                    : Icon(Icons.image_outlined,
+                        color: Colors.grey[400], size: 40),
+              ),
+              const SpaceWidth(20),
+              // Button Pilih Foto
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image =
+                          await picker.pickImage(source: ImageSource.gallery);
+                      if (image != null) setState(() => imageFile = image);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Pilih Foto',
+                        style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Section Detail Personal
+  Widget _buildPersonalDetailsSection() {
+    return _buildCardWrapper(
+      icon: Icons.person_rounded,
+      title: 'Personal Details',
+      subtitle: 'Update your personal information',
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: nameController,
+            label: 'Full Name',
+            icon: Icons.person_outline_rounded,
+          ),
+          _buildTextField(
+            controller: emailController,
+            label: 'Email Address',
+            icon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+          ),
+          _buildTextField(
+            controller: phoneController,
+            label: 'Phone Number',
+            icon: Icons.phone_android_rounded,
+            keyboardType: TextInputType.phone,
+          ),
+          _buildTextField(
+            controller: addressController,
+            label: 'Address',
+            icon: Icons.location_on_outlined,
+            maxLines: 3,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Section Kontak Darurat
+  Widget _buildEmergencyContactSection() {
+    return _buildCardWrapper(
+      icon: Icons.phone_in_talk_rounded,
+      title: 'Emergency Contact',
+      subtitle: 'Update your emergency contact',
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: emergencyNameController,
+            label: 'Contact Name',
+            icon: Icons.person_outline_rounded,
+          ),
+          _buildTextField(
+            controller: emergencyRelationController,
+            label: 'Relationship',
+            icon: Icons.people_outline_rounded,
+          ),
+          _buildTextField(
+            controller: emergencyPhoneController,
+            label: 'Contact Number',
+            icon: Icons.phone_android_rounded,
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Komponen Reusable untuk Card
+  Widget _buildCardWrapper({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -331,327 +334,119 @@ class _UpdateProfilePageState extends State<UpdateProfilePage>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1e3c72), Color(0xFF3b82c9)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  color: primaryColor,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.person_outline_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: Icon(icon, color: Colors.white, size: 20),
               ),
-              const SpaceWidth(16),
+              const SpaceWidth(15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Personal Details',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    Text(
-                      'Update your personal information',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
+                    Text(title,
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.grey[900])),
+                    Text(subtitle,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.grey[500])),
                   ],
                 ),
               ),
             ],
           ),
-          const SpaceHeight(24),
+          const Divider(height: 30),
+          child,
+        ],
+      ),
+    );
+  }
 
-          // Name Field
-          _buildModernTextField(
-            controller: nameController!,
-            label: 'Full Name',
-            hint: 'Enter your full name',
-            icon: Icons.person_outline_rounded,
-          ),
-          const SpaceHeight(20),
-
-          // Email Field
-          _buildModernTextField(
-            controller: emailController!,
-            label: 'Email Address',
-            hint: 'Enter your email address',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SpaceHeight(20),
-
-          // Phone Field
-          _buildModernTextField(
-            controller: phoneController!,
-            label: 'Phone Number',
-            hint: 'Enter your phone number',
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
+  // Komponen Reusable untuk Text Field sesuai desain gambar
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700])),
+          const SpaceHeight(8),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: TextFormField(
+              controller: controller,
+              maxLines: maxLines,
+              keyboardType: keyboardType,
+              style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[800]),
+              decoration: InputDecoration(
+                prefixIcon: Icon(icon, color: primaryColor, size: 20),
+                border: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildModernTextField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[800],
-          ),
+  // Tombol Submit di bagian bawah
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        onPressed: () {
+          // Tambahkan logika update bloc Anda di sini
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile Updated Successfully!')),
+          );
+          Navigator.pop(context);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 0,
         ),
-        const SpaceHeight(8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.grey[200]!,
-              width: 1,
-            ),
-          ),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[800],
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              prefixIcon: Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1e3c72).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: const Color(0xFF1e3c72),
-                ),
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpdateButton() {
-    return BlocConsumer<UpdateUserBloc, UpdateUserState>(
-      listener: (context, state) {
-        state.maybeMap(
-          orElse: () {},
-          success: (user) async {
-            context.read<GetUserBloc>().add(const GetUserEvent.getUser());
-
-            _showModernSnackBar(
-              'Profile updated successfully!',
-              Icons.check_circle_rounded,
-              Colors.green,
-            );
-            Navigator.of(context).pop(true);
-          },
-          error: (e) {
-            _showModernSnackBar(
-              'Failed to update profile. Please try again.',
-              Icons.error_outline_rounded,
-              Colors.red,
-            );
-          },
-        );
-      },
-      builder: (context, state) {
-        return state.maybeWhen(
-          orElse: () {
-            return Container(
-              width: double.infinity,
-              height: 56,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1e3c72), Color(0xFF3b82c9)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1e3c72).withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    _updateProfile();
-                  },
-                  child: Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.save_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SpaceWidth(8),
-                        Text(
-                          'Update Profile',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-          loading: () {
-            return Container(
-              width: double.infinity,
-              height: 56,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.grey[600]!,
-                        ),
-                      ),
-                    ),
-                    const SpaceWidth(12),
-                    Text(
-                      'Updating...',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _updateProfile() {
-    if (nameController!.text.trim().isEmpty) {
-      _showModernSnackBar(
-        'Please enter your name',
-        Icons.warning_rounded,
-        Colors.orange,
-      );
-      return;
-    }
-
-    if (emailController!.text.trim().isEmpty) {
-      _showModernSnackBar(
-        'Please enter your email address',
-        Icons.warning_rounded,
-        Colors.orange,
-      );
-      return;
-    }
-
-    if (phoneController!.text.trim().isEmpty) {
-      _showModernSnackBar(
-        'Please enter your phone number',
-        Icons.warning_rounded,
-        Colors.orange,
-      );
-      return;
-    }
-
-    final String name = nameController!.text.trim();
-    final String email = emailController!.text.trim();
-    final String phone = phoneController!.text.trim();
-
-    final UserRequestModel user = UserRequestModel(
-      id: widget.user.id!,
-      name: name,
-      email: email,
-      phone: phone,
-      image: imageFile,
-    );
-
-    context.read<UpdateUserBloc>().add(
-          UpdateUserEvent.updateUser(user, widget.user.id!),
-        );
-  }
-
-  void _showModernSnackBar(String message, IconData icon, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white),
-            const SpaceWidth(8),
-            Expanded(
-              child: Text(
-                message,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+            const Icon(Icons.verified_user_rounded,
+                color: Colors.white, size: 20),
+            const SpaceWidth(10),
+            Text(
+              'Update Profile (UI Preview)',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             ),
           ],
         ),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        margin: const EdgeInsets.all(16),
       ),
     );
   }

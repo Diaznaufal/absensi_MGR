@@ -9,6 +9,7 @@ import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:month_year_picker/month_year_picker.dart';
+import '../pages/schadule_kerja.dart';
 
 import '../../../core/core.dart';
 
@@ -432,13 +433,19 @@ class _HistoryPageState extends State<HistoryPage> {
                 ),
                 TextButton(
                   onPressed: () {
-                    // Handle "Lihat Semua" button press
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => ScheduleKerjaPage()),
+                    );
                   },
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: Size(10, 30),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     alignment: Alignment.centerRight,
+                    splashFactory: NoSplash.splashFactory,
+                    overlayColor: Colors.transparent,
                   ),
                   child: Text(
                     'Lihat Semua',
@@ -446,7 +453,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF4263F5),
-                  ),
+                    ),
                   ),
                 ),
               ],

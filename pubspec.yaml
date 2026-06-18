@@ -53,7 +53,6 @@ dependencies:
   path: ^1.9.0
   file_picker: ^8.1.6
   url_launcher: ^6.3.1
-  intl: ^0.20.2
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   month_year_picker: ^0.5.0+1
@@ -65,13 +64,16 @@ dependencies:
   shared_preferences: ^2.2.3
   dropdown_button2: ^2.3.9
   photo_view: ^0.15.0
+  table_calendar: ^3.1.2
+
 
   change_app_package_name: ^1.4.0
   device_info_plus: ^12.0.0
 dev_dependencies:
   build_runner: ^2.4.6
   flutter_gen_runner: ^5.3.2
-  
+dependency_overrides:
+  intl: ^0.20.0
   
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -138,4 +140,4 @@ flutter_gen:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icon/logo_transparent.png"
+  image_path: "assets/icon/icon_app.png"

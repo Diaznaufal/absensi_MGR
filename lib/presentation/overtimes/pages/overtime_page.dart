@@ -169,13 +169,7 @@ class _OvertimePageState extends State<OvertimePage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10)),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))]),
       child: _buildActionButtons(context, provider.currentStatus),
     );
   }
@@ -183,46 +177,49 @@ class _OvertimePageState extends State<OvertimePage> {
   Widget _buildActionButtons(BuildContext context, String status) {
     final provider = context.watch<OvertimeProvider>();
     final history = provider.historyList;
-    
-    // =========================================================================
-    // LOGIKA TRACKING OTOMATIS BERDASARKAN FILTER TANGGAL HARI INI & ATURAN JAM
-    // =========================================================================
-    bool isTimeValidToCheckIn = false;
-    String statusAlertMessage = 'Harap isi form "Ajukan Lembur" terlebih dahulu';
+    final bool canRequestManual = status == 'not_started';
 
-    if (history.isNotEmpty) {
-      final now = DateTime.now();
-      final formattedToday = DateFormat('yyyy-MM-dd').format(now);
+    final now = DateTime.now();
+    final formattedToday = DateFormat('yyyy-MM-dd').format(now);
 
-      // 1. Cari apakah ada pengajuan lembur manual yang tanggalnya ADALAH HARI INI
-      final OvertimeModel? todaySchedule = history.cast<OvertimeModel?>().firstWhere(
-        (element) => element != null && element.date == formattedToday && element.status == 'pending',
-        orElse: () => null,
-      );
+    // MENCARI APAKAH ADA PENGAJUAN JADWAL MANUAL UNTUK HARI INI
+    final OvertimeModel? todaySchedule = history.cast<OvertimeModel?>().firstWhere(
+      (element) => element != null && element.date == formattedToday && element.status == 'pending',
+      orElse: () => null,
+    );
 
-      if (todaySchedule != null && todaySchedule.startTime != null) {
+    bool hasPlannedOvertime = todaySchedule != null;
+    bool isCheckInActive = false;
+    String statusAlertMessage = 'Silakan pilih metode: Ajukan Rencana atau Langsung Check In Urgent';
+
+    if (status == 'not_started') {
+      if (!hasPlannedOvertime) {
+        // JIKA BELUM ADA PENGAJUAN: Dua-duanya nyala (Check In berfungsi sebagai Pendaftaran Urgent)
+        isCheckInActive = true;
+        statusAlertMessage = 'Ready to start. Bisa Ajukan Rencana atau Langsung Check In Urgent.';
+      } else {
+        // JIKA SUDAH ADA PENGAJUAN MANUAl: Check In mati, baru aktif 1 jam (60 menit) sebelum jadwal dimulai
         final timeStr = todaySchedule.startTime!;
         final scheduledDateTime = DateTime.parse('$formattedToday $timeStr:00');
-
-        // 2. Hitung selisih waktu sekarang dengan jadwal mulai lembur (dalam Menit)
         final differenceInMinutes = scheduledDateTime.difference(now).inMinutes;
 
-        // Tombol baru menyala hijau jika waktu sekarang sudah masuk gerbang maksimal 2 jam (120 menit) sebelum jadwal
-        if (differenceInMinutes <= 120) {
-          isTimeValidToCheckIn = true;
-          statusAlertMessage = _getStatusMessage(status);
+        if (differenceInMinutes <= 60) {
+          isCheckInActive = true;
+          statusAlertMessage = 'Jadwal terdeteksi. Silakan klik Check In untuk validasi kehadiran Anda.';
         } else {
-          statusAlertMessage = 'Tombol aktif pada hari-H (Maksimal 2 jam sebelum jam $timeStr)';
+          isCheckInActive = false;
+          statusAlertMessage = 'Tombol Check In terkunci. Aktif kembali otomatis 1 jam sebelum jam $timeStr';
         }
-      } else {
-        statusAlertMessage = 'Tidak ada jadwal lembur manual untuk hari ini';
       }
+    } else if (status == 'in_progress') {
+      statusAlertMessage = 'Lembur sedang berjalan...';
+    } else {
+      statusAlertMessage = 'Sesi lembur selesai, menunggu persetujuan admin';
     }
-    // =========================================================================
 
-    final bool canCheckIn = history.isNotEmpty && status == 'not_started' && isTimeValidToCheckIn;
-    final bool canCheckOut = history.isNotEmpty && status == 'in_progress';
-    final bool isCompleted = history.isNotEmpty && status == 'completed';
+    final bool canCheckIn = status == 'not_started' && isCheckInActive;
+    final bool canCheckOut = status == 'in_progress';
+    final bool isCompleted = status == 'completed';
 
     return Column(
       children: [
@@ -230,10 +227,7 @@ class _OvertimePageState extends State<OvertimePage> {
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A49B7),
-                borderRadius: BorderRadius.circular(12),
-              ),
+              decoration: BoxDecoration(color: const Color(0xFF0A49B7), borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 24),
             ),
             const SpaceWidth(16),
@@ -241,44 +235,18 @@ class _OvertimePageState extends State<OvertimePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Overtime Status',
-                    style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.black),
-                  ),
-                  Text(
-                    statusAlertMessage,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12, 
-                      color: !isTimeValidToCheckIn && status == 'not_started' ? Colors.red : AppColors.grey
-                    ),
-                  ),
+                  Text('Status Lembur', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.black)),
+                  Text(statusAlertMessage, style: GoogleFonts.poppins(fontSize: 12, color: !isCheckInActive && hasPlannedOvertime && status == 'not_started' ? Colors.red : AppColors.grey)),
                 ],
               ),
             ),
-            if (history.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: (canCheckIn || canCheckOut || isCompleted ? _getStatusColor(status) : AppColors.grey).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: (canCheckIn || canCheckOut || isCompleted ? _getStatusColor(status) : AppColors.grey).withOpacity(0.3)),
-                ),
-                child: Text(
-                  _getStatusLabel(status),
-                  style: GoogleFonts.poppins(
-                    fontSize: 11, 
-                    fontWeight: FontWeight.w600, 
-                    color: canCheckIn || canCheckOut || isCompleted ? _getStatusColor(status) : AppColors.grey
-                  ),
-                ),
-              ),
           ],
         ),
         const SpaceHeight(20),
         const Divider(height: 1),
         const SpaceHeight(20),
 
-        // 1. TOMBOL AJUKAN LEMBUR MANUAL (Selalu aktif untuk input data/alasan)
+        // 1. TOMBOL AJUKAN LEMBUR MANUAL
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF0A49B7).withOpacity(0.08),
@@ -288,13 +256,13 @@ class _OvertimePageState extends State<OvertimePage> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFF0A49B7), width: 1.2)),
           ),
           icon: const Icon(Icons.edit_calendar_rounded, size: 20),
-          label: Text('Ajukan Lembur Manual (Susulan/Rencana)', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
+          label: Text('Ajukan Lembur', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
           onPressed: () => _showManualOvertimeBottomSheet(context),
         ),
         
         const SpaceHeight(14),
 
-        // 2. TOMBOL ABSENSI REAL-TIME VALIDASI (Hasil Tracking Otomatis)
+        // 2. TOMBOL ABSENSI REAL-TIME
         Row(
           children: [
             Expanded(
@@ -304,19 +272,19 @@ class _OvertimePageState extends State<OvertimePage> {
                   foregroundColor: canCheckIn ? Colors.white : AppColors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: canCheckIn ? 2 : 0,
                 ),
                 onPressed: canCheckIn
                     ? () {
-                        _showActionConfirmationDialog(
-                          isCheckIn: true,
-                          onConfirm: () {
-                            context.read<OvertimeProvider>().startOvertime();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Center(child: Text('Validasi Check In Berhasil!')), backgroundColor: AppColors.green),
-                            );
-                          },
-                        );
+                        if (hasPlannedOvertime) {
+                          // JALUR 1: Validasi Hadir biasa (Karena sudah ada rencana pengajuan)
+                          _showActionConfirmationDialog(
+                            isCheckIn: true,
+                            onConfirm: () => context.read<OvertimeProvider>().startOvertime(),
+                          );
+                        } else {
+                          // JALUR 2: Langsung Check In Urgent (Buka Form Pengisian Alasan Dulu)
+                          _showUrgentCheckInBottomSheet(context);
+                        }
                       }
                     : null,
                 icon: const Icon(Icons.login_rounded, size: 20),
@@ -331,18 +299,12 @@ class _OvertimePageState extends State<OvertimePage> {
                   foregroundColor: canCheckOut ? Colors.white : AppColors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: canCheckOut ? 2 : 0,
                 ),
                 onPressed: canCheckOut
                     ? () {
                         _showActionConfirmationDialog(
                           isCheckIn: false,
-                          onConfirm: () {
-                            context.read<OvertimeProvider>().endOvertime();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Center(child: Text('Validasi Check Out Berhasil!')), backgroundColor: AppColors.green),
-                            );
-                          },
+                          onConfirm: () => context.read<OvertimeProvider>().endOvertime(),
                         );
                       }
                     : null,
@@ -354,18 +316,6 @@ class _OvertimePageState extends State<OvertimePage> {
         ),
         if (isCompleted) ...[
           const SpaceHeight(12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Row(
-              children: [
-                const Icon(Icons.pending_actions_rounded, color: Colors.orange, size: 20),
-                const SpaceWidth(12),
-                Expanded(child: Text('Validasi absen selesai, menunggu persetujuan admin', style: GoogleFonts.poppins(fontSize: 12, color: Colors.orange))),
-              ],
-            ),
-          ),
-          const SpaceHeight(12),
           TextButton(
             onPressed: () => context.read<OvertimeProvider>().resetSimulasi(),
             child: Text('Reset Sesi Simulasi', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600)),
@@ -375,6 +325,7 @@ class _OvertimePageState extends State<OvertimePage> {
     );
   }
 
+  // MODAL 1: FORM PENDAFTARAN JADWAL MANUAL / RENCANA AWAL
   void _showManualOvertimeBottomSheet(BuildContext context) {
     final dateController = TextEditingController();
     final startController = TextEditingController();
@@ -386,15 +337,15 @@ class _OvertimePageState extends State<OvertimePage> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-          child: SingleChildScrollView(
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        child: StatefulBuilder(
+          builder: (context, setModalState) => SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Form Lembur Manual (Susulan)', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Form Lembur Manual (Susulan/Rencana)', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SpaceHeight(16),
                 TextField(
                   controller: dateController,
@@ -406,11 +357,9 @@ class _OvertimePageState extends State<OvertimePage> {
                       context: context,
                       initialDate: now,
                       firstDate: now.subtract(const Duration(days: 30)),
-                      lastDate: now.add(const Duration(days: 365 * 5)), // Fleksibel untuk lusa atau masa depan
+                      lastDate: now.add(const Duration(days: 365 * 5)),
                     );
-                    if (pickedDate != null) {
-                      setModalState(() => dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate));
-                    }
+                    if (pickedDate != null) setModalState(() => dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate));
                   },
                 ),
                 const SpaceHeight(16),
@@ -423,9 +372,7 @@ class _OvertimePageState extends State<OvertimePage> {
                         decoration: const InputDecoration(labelText: 'Jam Mulai *', suffixIcon: Icon(Icons.access_time_rounded), border: OutlineInputBorder()),
                         onTap: () async {
                           final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                          if (time != null) {
-                            setModalState(() => startController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
-                          }
+                          if (time != null) setModalState(() => startController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
                         },
                       ),
                     ),
@@ -437,16 +384,14 @@ class _OvertimePageState extends State<OvertimePage> {
                         decoration: const InputDecoration(labelText: 'Jam Selesai *', suffixIcon: Icon(Icons.access_time_rounded), border: OutlineInputBorder()),
                         onTap: () async {
                           final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                          if (time != null) {
-                            setModalState(() => endController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
-                          }
+                          if (time != null) setModalState(() => endController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
                         },
                       ),
                     ),
                   ],
                 ),
                 const SpaceHeight(16),
-                TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Alasan Lembur *', hintText: 'Contoh: Mengerjakan project yang dikejar deadline hari ini', border: OutlineInputBorder())),
+                TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Alasan Lembur *', border: OutlineInputBorder())),
                 const SpaceHeight(16),
                 TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Catatan (Opsional)', border: OutlineInputBorder())),
                 const SpaceHeight(24),
@@ -464,21 +409,75 @@ class _OvertimePageState extends State<OvertimePage> {
                           notes: notesController.text.isEmpty ? null : notesController.text,
                         );
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Center(child: Text('Lembur susulan berhasil diajukan!')), backgroundColor: AppColors.green),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Center(child: Text('Harap isi seluruh kolom wajib (*)')), backgroundColor: AppColors.red),
-                        );
                       }
                     },
-                    child: Text('Ajukan Lembur', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15)),
+                    child: Text('Ajukan Lembur', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SpaceHeight(24),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // MODAL 2: FORM KHUSUS UNTUK LANGSUNG CHECK IN LEMBUR URGENT/MENDADK
+  void _showUrgentCheckInBottomSheet(BuildContext context) {
+    final reasonController = TextEditingController();
+    final notesController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Form Pendaftaran Lembur Urgent', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+              const SpaceHeight(8),
+              Text('Anda langsung memulai check-in secara real-time saat ini. Sampaikan detail alasan darurat Anda di bawah.', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.grey)),
+              const SpaceHeight(20),
+              TextField(
+                controller: reasonController, 
+                decoration: const InputDecoration(labelText: 'Alasan Urgent Lembuaran *', hintText: 'Contoh: Penanganan server crash / instruksi urgent klien', border: OutlineInputBorder())
+              ),
+              const SpaceHeight(16),
+              TextField(
+                controller: notesController, 
+                decoration: const InputDecoration(labelText: 'Catatan Tambahan (Opsional)', border: OutlineInputBorder())
+              ),
+              const SpaceHeight(24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  onPressed: () {
+                    if (reasonController.text.trim().isNotEmpty) {
+                      context.read<OvertimeProvider>().startUrgentOvertime(
+                        reason: reasonController.text.trim(),
+                        notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                      );
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Center(child: Text('Check In Lembur Urgent Berhasil Dimulai!')), backgroundColor: AppColors.green),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Center(child: Text('Alasan urgent wajib diisi!')), backgroundColor: AppColors.red),
+                      );
+                    }
+                  },
+                  child: Text('Mulai & Check In Sekarang', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SpaceHeight(24),
+            ],
           ),
         ),
       ),
@@ -513,11 +512,11 @@ class _OvertimePageState extends State<OvertimePage> {
 
   Widget _buildNoDataHistory() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(50),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 10))]),
       child: Column(
         children: [
-          const Icon(Icons.inbox_rounded, color: Colors.orange, size: 48),
+          const Icon(Icons.inbox_rounded, color: Colors.orange, size: 50),
           const SpaceHeight(16),
           Text('No Overtime Records', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.black)),
           const SpaceHeight(8),

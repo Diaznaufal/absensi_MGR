@@ -317,8 +317,8 @@ class _AddLeavePageState extends State<AddLeavePage> {
 
           String? quotaText;
           if (type.toLowerCase().contains('annual'))
-            quotaText = '12 days quota';
-          if (type.toLowerCase().contains('sick')) quotaText = '30 days quota';
+            quotaText = 'Kuota 12 hari';
+          if (type.toLowerCase().contains('sick')) quotaText = 'Kuota 30 hari';
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -521,7 +521,7 @@ class _AddLeavePageState extends State<AddLeavePage> {
                 width: 20,
                 child: CircularProgressIndicator(
                     color: Colors.white, strokeWidth: 2))
-            : Text('Submit Leave Request',
+            : Text('Ajukan Permohonan Cuti',
                 style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
