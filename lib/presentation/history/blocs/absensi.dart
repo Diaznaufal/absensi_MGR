@@ -1,4 +1,4 @@
-import '../pages/widgets/riwayat_absensi.dart';
+import '../widgets/riwayat_absensi.dart';
 
 final histories = [
   (

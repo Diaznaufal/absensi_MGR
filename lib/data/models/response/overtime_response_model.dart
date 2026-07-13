@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 class OvertimeResponseModel {
+  final bool? status;
   final String? message;
   final List<Overtime>? data;
 
   OvertimeResponseModel({
+    this.status,
     this.message,
     this.data,
   });
@@ -16,6 +18,7 @@ class OvertimeResponseModel {
 
   factory OvertimeResponseModel.fromMap(Map<String, dynamic> json) =>
       OvertimeResponseModel(
+        status: json['status'],
         message: json['message'],
         data: json['data'] == null
             ? []
@@ -25,41 +28,39 @@ class OvertimeResponseModel {
       );
 
   Map<String, dynamic> toMap() => {
+        'status': status,
         'message': message,
-        'data':
-            data == null ? [] : List<dynamic>.from(data!.map((x) => x.toMap())),
+        'data': data == null
+            ? []
+            : List<dynamic>.from(data!.map((x) => x.toMap())),
       };
 }
 
 class Overtime {
-  final int? id;
-  final int? userId;
-  final String? date;
-  final String? startTime;
-  final String? endTime;
-  final String? reason;
-  final String? document;
+  final String? idOvertime;
+  final String? idEmployee;
+  final String? tanggal;
+  final String? inputAt;
+  final String? timeSpend;
+  final String? start;
+  final String? end;
+  final String? description;
   final String? status;
-  final String? notes;
-  final DateTime? approvedAt;
-  final int? approvedBy;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String? pay;
+  final String? statusLabel;
 
   Overtime({
-    this.id,
-    this.userId,
-    this.date,
-    this.startTime,
-    this.endTime,
-    this.reason,
-    this.document,
+    this.idOvertime,
+    this.idEmployee,
+    this.tanggal,
+    this.inputAt,
+    this.timeSpend,
+    this.start,
+    this.end,
+    this.description,
     this.status,
-    this.notes,
-    this.approvedAt,
-    this.approvedBy,
-    this.createdAt,
-    this.updatedAt,
+    this.pay,
+    this.statusLabel,
   });
 
   factory Overtime.fromJson(String str) => Overtime.fromMap(json.decode(str));
@@ -67,80 +68,40 @@ class Overtime {
   String toJson() => json.encode(toMap());
 
   factory Overtime.fromMap(Map<String, dynamic> json) => Overtime(
-        id: json['id'],
-        userId: json['user_id'],
-        date: json['date'],
-        startTime: json['start_time'],
-        endTime: json['end_time'],
-        reason: json['reason'],
-        document: json['document'],
-        status: json['status'],
-        notes: json['notes'],
-        approvedAt: json['approved_at'] == null
-            ? null
-            : DateTime.parse(json['approved_at']),
-        approvedBy: json['approved_by'],
-        createdAt: json['created_at'] == null
-            ? null
-            : DateTime.parse(json['created_at']),
-        updatedAt: json['updated_at'] == null
-            ? null
-            : DateTime.parse(json['updated_at']),
-      );
+      idOvertime: json['id_overtime']?.toString(),
+      idEmployee: json['id_employee']?.toString(),
+      tanggal: json['tanggal'],
+      inputAt: json['input_at'],
+      timeSpend: json['time_spend']?.toString(),
+      start: json['start'],
+      end: json['end'],
+      description: json['description'],
+      status: json['status']?.toString(),
+      pay: json['pay']?.toString(),
+      statusLabel: json['status_label']);
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'user_id': userId,
-        'date': date,
-        'start_time': startTime,
-        'end_time': endTime,
-        'reason': reason,
-        'document': document,
+        'id_overtime': idOvertime,
+        'id_employee': idEmployee,
+        'tanggal': tanggal,
+        'input_at': inputAt,
+        'time_spend': timeSpend,
+        'start': start,
+        'end': end,
+        'description': description,
         'status': status,
-        'notes': notes,
-        'approved_at': approvedAt?.toIso8601String(),
-        'approved_by': approvedBy,
-        'created_at': createdAt?.toIso8601String(),
-        'updated_at': updatedAt?.toIso8601String(),
+        'pay': pay,
+        'status_label': statusLabel,
       };
 }
 
-class OvertimeStatusResponseModel {
-  final String? status;
-  final String? message;
-  final Overtime? data;
-
-  OvertimeStatusResponseModel({
-    this.status,
-    this.message,
-    this.data,
-  });
-
-  factory OvertimeStatusResponseModel.fromJson(String str) =>
-      OvertimeStatusResponseModel.fromMap(json.decode(str));
-
-  String toJson() => json.encode(toMap());
-
-  factory OvertimeStatusResponseModel.fromMap(Map<String, dynamic> json) =>
-      OvertimeStatusResponseModel(
-        status: json['status'],
-        message: json['message'],
-        data: json['data'] == null ? null : Overtime.fromMap(json['data']),
-      );
-
-  Map<String, dynamic> toMap() => {
-        'status': status,
-        'message': message,
-        'data': data?.toMap(),
-      };
-}
-
-// Response model for single overtime (start/end overtime)
 class OvertimeSingleResponseModel {
+  final bool? status;
   final String? message;
   final Overtime? data;
 
   OvertimeSingleResponseModel({
+    this.status,
     this.message,
     this.data,
   });
@@ -152,11 +113,13 @@ class OvertimeSingleResponseModel {
 
   factory OvertimeSingleResponseModel.fromMap(Map<String, dynamic> json) =>
       OvertimeSingleResponseModel(
+        status: json['status'], 
         message: json['message'],
         data: json['data'] == null ? null : Overtime.fromMap(json['data']),
       );
 
   Map<String, dynamic> toMap() => {
+        'status': status, 
         'message': message,
         'data': data?.toMap(),
       };

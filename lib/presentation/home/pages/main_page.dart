@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_absensi_app/data/models/response/auth_response_model.dart'; // Tetap butuh ini untuk class User
 import 'package:flutter_absensi_app/presentation/penggajian/pages/penggajian.dart';
 import 'package:flutter_absensi_app/presentation/history/pages/history_page.dart';
 import 'package:flutter_absensi_app/presentation/home/pages/home_page.dart';
@@ -17,12 +18,15 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  final _widgets = [
-    HomePage(),
-    HistoryPage(),
-    RingkasanKerja(),
-    ProfilePage(),
-  ];
+  // Mengembalikan widget secara instan tanpa memanggil API / Local Datasource
+  List<Widget> get _widgets => [
+        HomePage(),
+        HistoryPage(),
+        RingkasanKerja(),
+        // Mempassing objek User kosong agar parameter 'required' terpenuhi dan halaman langsung terbuka
+        ProfilePage(),
+      ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,7 +41,7 @@ class _MainPageState extends State<MainPage> {
 
   Widget _buildModernBottomNavBar() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Color(0xFF0A49B7),
         borderRadius: BorderRadius.only(
             topLeft: Radius.circular(18), topRight: Radius.circular(18)),
@@ -46,30 +50,16 @@ class _MainPageState extends State<MainPage> {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           height: 65,
-          decoration: BoxDecoration(),
+          decoration: const BoxDecoration(),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              _buildNavItem(index: 0, icon: Icons.home_rounded, label: 'Home'),
               _buildNavItem(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home',
-              ),
+                  index: 1, icon: Icons.history_rounded, label: 'Riwayat'),
+              _buildNavItem(index: 2, icon: Icons.wallet, label: 'Penggajian'),
               _buildNavItem(
-                index: 1,
-                icon: Icons.history_rounded,
-                label: 'Riwayat',
-              ),
-              _buildNavItem(
-                index: 2,
-                icon: Icons.wallet,
-                label: 'Penggajian',
-              ),
-              _buildNavItem(
-                index: 3,
-                icon: Icons.person_rounded,
-                label: 'Profile',
-              ),
+                  index: 3, icon: Icons.person_rounded, label: 'Profile'),
             ],
           ),
         ),

@@ -22,15 +22,16 @@ class AttendanceResultPage extends StatefulWidget {
   final String attendanceType;
   final double? latitude;
   final double? longitude;
+  final String idSchedule;
 
-  const AttendanceResultPage({
-    super.key,
-    required this.isCheckin,
-    required this.isMatch,
-    required this.attendanceType,
-    this.latitude,
-    this.longitude,
-  });
+  const AttendanceResultPage(
+      {super.key,
+      required this.isCheckin,
+      required this.isMatch,
+      required this.attendanceType,
+      this.latitude,
+      this.longitude,
+      required this.idSchedule});
 
   @override
   State<AttendanceResultPage> createState() => _RecognitionResultPageState();
@@ -40,6 +41,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
     with SingleTickerProviderStateMixin {
   double? latitude;
   double? longitude;
+  String? imagePath;
   bool isLoadingLocation = true;
   String? locationError;
   bool isWithinRadius = false;
@@ -176,7 +178,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
           );
 
           setState(() {
-            isWithinRadius = true;
+            isWithinRadius = distance <= radiusKm;
           });
 
           debugPrint(
@@ -185,7 +187,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
       },
       orElse: () {
         setState(() {
-          isWithinRadius = true;
+          isWithinRadius = false;
         });
       },
     );
@@ -223,91 +225,35 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
         );
       },
       child: Scaffold(
-        body: Stack(
-          children: [
-            _buildBackground(),
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          const SpaceHeight(20),
-                          _buildResultCard(),
-                          const SpaceHeight(24),
-                          _buildLocationInfo(),
-                          const SpaceHeight(24),
-                          _buildActionButtons(),
-                          const SpaceHeight(40),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: [0.0, 0.4, 1.0],
+              colors: [
+                Color(0xFF1e3c72),
+                Color(0xFF2a5298),
+                Colors.white,
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackground() {
-    return Column(
-      children: [
-        // biru atas
-        ClipPath(
-          clipper: HeaderClipper(),
-          child: Container(
-            height: 240,
-            decoration: const BoxDecoration(color: Color(0xFF1E5EFF)),
-            child: Stack(
+          ),
+          child: SafeArea(
+            child: Column(
               children: [
-                Positioned(
-                  left: -150,
-                  top: -380,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      width: 500,
-                      height: 500,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          center: Alignment.topRight, // cahaya dari kanan atas
-                          radius: 1.2,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.18), // terang
-                            Colors.white.withValues(alpha: 0.0), // gelap
-                          ],
-                          stops: [0.2, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: -100,
-                  top: 50,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          center: Alignment.topLeft, // cahaya dari kanan atas
-                          radius: 1,
-                          colors: [
-                            Colors.white.withValues(alpha: 0.1), // terang
-                            Colors.white.withValues(alpha: -1), // gelap
-                          ],
-                          stops: [0.1, 1.0],
-                        ),
-                      ),
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SpaceHeight(10),
+                        _buildResultCard(),
+                        const SpaceHeight(24),
+                        _buildLocationInfo(),
+                        const SpaceHeight(24),
+                        _buildActionButtons(),
+                        const SpaceHeight(40),
+                      ],
                     ),
                   ),
                 ),
@@ -315,26 +261,20 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
             ),
           ),
         ),
-
-        // putih bawah
-        Expanded(
-          child: Container(
-            color: const Color(0xFFF5F7FB),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Row(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
             child: IconButton(
               icon: const Icon(
@@ -353,7 +293,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                 Text(
                   widget.isCheckin ? 'Check In' : 'Check Out',
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
@@ -398,8 +338,8 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                 children: [
                   // Icon
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isWithinRadius
@@ -410,11 +350,11 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                       boxShadow: [
                         BoxShadow(
                           color: (isWithinRadius
-                                  ? Colors.green.shade200
-                                  : Colors.orange.shade200)
+                                  ? Colors.green.shade300
+                                  : Colors.orange.shade300)
                               .withValues(alpha: 0.4),
-                          blurRadius: 1,
-                          spreadRadius: 10,
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
@@ -508,7 +448,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
 
                   // Info box
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: isWithinRadius
                           ? Colors.green.shade50
@@ -532,33 +472,19 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                               : Colors.orange.shade700,
                           size: 24,
                         ),
-                        const SpaceWidth(10),
+                        const SpaceWidth(12),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isWithinRadius
-                                    ? 'Lokasi Anda sesuai dengan area kantor'
-                                    : 'Pastikan Anda berada di area kantor',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: isWithinRadius
-                                      ? Colors.green.shade800
-                                      : Colors.orange.shade800,
-                                ),
-                              ),
-                              Text(
-                                isWithinRadius
-                                    ? ''
-                                    : 'Silahkan masuk ke area yang ditentukan',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black45),
-                              ),
-                            ],
+                          child: Text(
+                            isWithinRadius
+                                ? 'Lokasi Anda sesuai dengan area kantor'
+                                : 'Pastikan Anda berada di area kantor',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isWithinRadius
+                                  ? Colors.green.shade800
+                                  : Colors.orange.shade800,
+                            ),
                           ),
                         ),
                       ],
@@ -683,7 +609,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -701,7 +627,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1e3c72).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -723,13 +649,13 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
               ),
             ],
           ),
-          Divider(),
+          const SpaceHeight(16),
           _buildLocationRow(
             icon: Icons.location_on_rounded,
             label: 'Latitude',
             value: latitude?.toStringAsFixed(6) ?? '-',
           ),
-          Divider(),
+          const SpaceHeight(12),
           _buildLocationRow(
             icon: Icons.location_on_rounded,
             label: 'Longitude',
@@ -745,41 +671,32 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
     required String label,
     required String value,
   }) {
-    return IntrinsicHeight(
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 16,
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Colors.grey[600],
+        ),
+        const SpaceWidth(8),
+        Text(
+          '$label: ',
+          style: GoogleFonts.poppins(
+            fontSize: 13,
             color: Colors.grey[600],
           ),
-          const SpaceWidth(8),
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label ',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1e3c72),
             ),
           ),
-          VerticalDivider(
-            thickness: 2,
-            width: 40,
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1e3c72),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -794,38 +711,38 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
             widget.isCheckin ? _buildCheckinButton() : _buildCheckoutButton(),
 
           // Warning message if outside radius
-          // if (!isWithinRadius && !isLoadingLocation && locationError == null)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.red.shade200,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.error_outline_rounded,
-                  color: Colors.red.shade700,
-                  size: 28,
+          if (!isWithinRadius && !isLoadingLocation && locationError == null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.red.shade200,
+                  width: 1,
                 ),
-                const SpaceWidth(12),
-                Expanded(
-                  child: Text(
-                    'Anda berada di luar radius yang ditentukan. Check-in/Check-out tidak dapat dilanjutkan.',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.red.shade800,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: Colors.red.shade700,
+                    size: 24,
+                  ),
+                  const SpaceWidth(12),
+                  Expanded(
+                    child: Text(
+                      'Anda berada di luar radius yang ditentukan. Check-in/Check-out tidak dapat dilanjutkan.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.red.shade800,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           // Retry button for location-based
           if (widget.attendanceType.toLowerCase() == 'location_based_only' &&
@@ -1070,9 +987,14 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                       onConfirm: () {
                         context.read<CheckinAttendanceBloc>().add(
                               CheckinAttendanceEvent.checkin(
-                                latitude?.toString() ?? '0',
-                                longitude?.toString() ?? '0',
-                              ),
+                                  latitute:
+                                      latitude ?? 0.0, // Mengirim double murni
+                                  longitude:
+                                      longitude ?? 0.0, // Mengirim double murni
+                                  imagePath: imagePath ?? '',
+                                  idSchedule: widget
+                                      .idSchedule // Ambil dari variabel path foto kamera di page ini
+                                  ),
                             );
                       },
                     );
@@ -1177,8 +1099,14 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                       onConfirm: () {
                         context.read<CheckoutAttendanceBloc>().add(
                               CheckoutAttendanceEvent.checkout(
-                                latitude?.toString() ?? '0',
-                                longitude?.toString() ?? '0',
+                                latitude: latitude ??
+                                    0.0, // Mengirim tipe double murni
+                                longitude: longitude ??
+                                    0.0, // Mengirim tipe double murni
+                                imagePath: imagePath ??
+                                    '', // Kosongkan karena metode ini berbasis lokasi/QR, bukan wajah
+                                idSchedule: widget
+                                    .idSchedule, // Diambil dari properti widget
                               ),
                             );
                       },
@@ -1275,6 +1203,7 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
                 isCheckedIn: widget.isCheckin,
                 latitude: latitude,
                 longitude: longitude,
+                idSchedule: widget.idSchedule,
               ),
             ),
           );
@@ -1304,7 +1233,10 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () {
-          context.pushReplacement(ScannerPage(isCheckin: widget.isCheckin));
+          context.pushReplacement(ScannerPage(
+            isCheckin: widget.isCheckin,
+            idSchedule: widget.idSchedule,
+          ));
         },
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFF1e3c72),
@@ -1325,35 +1257,4 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
       ),
     );
   }
-}
-
-class HeaderClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    Path path = Path();
-
-    path.lineTo(0, size.height - 40);
-
-    path.quadraticBezierTo(
-      size.width * 0.20,
-      size.height,
-      size.width * 0.45,
-      size.height - 20,
-    );
-
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height - 50,
-      size.width,
-      size.height - 10,
-    );
-
-    path.lineTo(size.width, 0);
-    path.close();
-
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

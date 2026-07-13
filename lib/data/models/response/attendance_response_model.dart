@@ -2,7 +2,7 @@ import 'dart:convert';
 
 class AttendanceResponseModel {
   final String? message;
-  final List<Attendance>? data;
+  final List<AttendanceSchedule>? data;
 
   AttendanceResponseModel({
     this.message,
@@ -19,8 +19,8 @@ class AttendanceResponseModel {
         message: json["message"],
         data: json["data"] == null
             ? []
-            : List<Attendance>.from(
-                json["data"]!.map((x) => Attendance.fromMap(x))),
+            : List<AttendanceSchedule>.from(
+                json["data"]!.map((x) => AttendanceSchedule.fromMap(x))),
       );
 
   Map<String, dynamic> toMap() => {
@@ -30,88 +30,79 @@ class AttendanceResponseModel {
       };
 }
 
-class Attendance {
-  final int? id;
-  final int? userId;
-  final int? shiftId;
-  final DateTime? date;
-  final String? timeIn;
-  final String? timeOut;
-  final String? latlonIn;
-  final String? latlonOut;
-  final String? status;
-  final bool? isWeekend;
-  final bool? isHoliday;
-  final bool? holidayWork;
-  final int? lateMinutes;
-  final int? earlyLeaveMinutes;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+class AttendanceSchedule {
+  final String? idSchedule;
+  final String? idEmployee;
+  final String? idAttendance;
+  final DateTime? waktu;
+  final String? jamMasuk;
+  final String? jamKeluar;
+  final String? tanggalMasuk;
+  final int? status;
+  final String? statusLabel;
+  final String? nameWorkshift;
+  final String? clockIn;
+  final String? clockOut;
+  final dynamic
+      timeManagement; // 💡 Menambahkan tracking manajemen waktu keterlambatan
 
-  Attendance({
-    this.id,
-    this.userId,
-    this.shiftId,
-    this.date,
-    this.timeIn,
-    this.timeOut,
-    this.latlonIn,
-    this.latlonOut,
+  AttendanceSchedule({
+    this.idSchedule,
+    this.idEmployee,
+    this.idAttendance,
+    this.waktu,
+    this.jamMasuk,
+    this.jamKeluar,
+    this.tanggalMasuk,
     this.status,
-    this.isWeekend,
-    this.isHoliday,
-    this.holidayWork,
-    this.lateMinutes,
-    this.earlyLeaveMinutes,
-    this.createdAt,
-    this.updatedAt,
+    this.statusLabel,
+    this.nameWorkshift,
+    this.clockIn,
+    this.clockOut,
+    this.timeManagement, // 💡 Register constructor
   });
 
-  factory Attendance.fromJson(String str) =>
-      Attendance.fromMap(json.decode(str));
+  factory AttendanceSchedule.fromJson(String str) =>
+      AttendanceSchedule.fromMap(json.decode(str));
 
   String toJson() => json.encode(toMap());
 
-  factory Attendance.fromMap(Map<String, dynamic> json) => Attendance(
-        id: json["id"],
-        userId: json["user_id"],
-        shiftId: json["shift_id"],
-        date: json["date"] == null ? null : DateTime.parse(json["date"]),
-        timeIn: json["time_in"],
-        timeOut: json["time_out"],
-        latlonIn: json["latlon_in"],
-        latlonOut: json["latlon_out"],
-        status: json["status"],
-        isWeekend: json["is_weekend"],
-        isHoliday: json["is_holiday"],
-        holidayWork: json["holiday_work"],
-        lateMinutes: json["late_minutes"],
-        earlyLeaveMinutes: json["early_leave_minutes"],
-        createdAt: json["created_at"] == null
-            ? null
-            : DateTime.parse(json["created_at"]),
-        updatedAt: json["updated_at"] == null
-            ? null
-            : DateTime.parse(json["updated_at"]),
+  factory AttendanceSchedule.fromMap(Map<String, dynamic> json) =>
+      AttendanceSchedule(
+        idSchedule: json["id_schedule"]?.toString(),
+        idEmployee: json["id_employee"]?.toString(),
+        idAttendance: json["id_attendance"]?.toString(),
+        waktu: json["waktu"] == null ? null : DateTime.parse(json['waktu']),
+        jamMasuk: json["jam_masuk"],
+        jamKeluar: json["jam_keluar"],
+        tanggalMasuk: json["tanggal_masuk"],
+        // 💡 SINKRONISASI 1: Memperbaiki kesalahan fatal pencarian string key 'statu' menjadi 'status'
+        status: json["status"] != null
+            ? int.tryParse(json['status'].toString())
+            : null,
+        statusLabel: json["status_label"],
+        nameWorkshift: json["name_workshift"],
+        clockIn: json["clock_in"],
+        clockOut: json["clock_out"],
+        timeManagement: json[
+            "time_management"], // 💡 SINKRONISASI 2: Map key dari database server
       );
 
   Map<String, dynamic> toMap() => {
-        "id": id,
-        "user_id": userId,
-        "shift_id": shiftId,
-        "date":
-            "${date!.year.toString().padLeft(4, '0')}-${date!.month.toString().padLeft(2, '0')}-${date!.day.toString().padLeft(2, '0')}",
-        "time_in": timeIn,
-        "time_out": timeOut,
-        "latlon_in": latlonIn,
-        "latlon_out": latlonOut,
+        "id_schedule": idSchedule,
+        "id_employee": idEmployee,
+        "id_attendance": idAttendance,
+        "waktu": waktu == null
+            ? null
+            : "${waktu!.year.toString().padLeft(4, '0')}-${waktu!.month.toString().padLeft(2, '0')}-${waktu!.day.toString().padLeft(2, '0')}",
+        "jam_masuk": jamMasuk,
+        "jam_keluar": jamKeluar,
+        "tanggal_masuk": tanggalMasuk,
         "status": status,
-        "is_weekend": isWeekend,
-        "is_holiday": isHoliday,
-        "holiday_work": holidayWork,
-        "late_minutes": lateMinutes,
-        "early_leave_minutes": earlyLeaveMinutes,
-        "created_at": createdAt?.toIso8601String(),
-        "updated_at": updatedAt?.toIso8601String(),
+        "status_label": statusLabel,
+        "name_workshift": nameWorkshift,
+        "clock_in": clockIn,
+        "clock_out": clockOut,
+        "time_management": timeManagement, // 💡 Output balik enkripsi data map
       };
 }

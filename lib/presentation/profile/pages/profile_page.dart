@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-// Assuming these exist in your project structure
-import '../../../core/core.dart';
-import 'update_profile_page.dart';
-// If structure changed, just ensure you create a valid User object for push.
-import 'package:flutter_absensi_app/data/models/response/auth_response_model.dart';
-import '../../auth/pages/login_page.dart';
+// Pastikan import path di bawah ini disesuaikan dengan struktur folder proyek Anda
+import 'package:flutter_absensi_app/core/core.dart';
+import 'package:flutter_absensi_app/data/datasources/auth_local_datasource.dart';
+import 'package:flutter_absensi_app/presentation/auth/pages/login_page.dart';
+import 'package:flutter_absensi_app/presentation/profile/pages/update_profile_page.dart';
+import 'package:flutter_absensi_app/presentation/profile/bloc/get_user/get_user_bloc.dart';
+import 'package:flutter_absensi_app/data/models/response/user_response_model.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,710 +18,456 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
-    with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-
+class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
-
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) {
-        _fadeController.forward();
-        _slideController.forward();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    super.dispose();
+    // Memicu bloc untuk mengambil data profil saat halaman pertama kali dibuka
+    context.read<GetUserBloc>().add(const GetUserEvent.getUser());
   }
 
   @override
   Widget build(BuildContext context) {
-    // Set a consistent light grey background color for the screen
-    final backgroundColor = Color(0xBAE7E8EC);
-
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 60,
         backgroundColor: const Color(0xFF0A49B7),
         elevation: 0,
-        toolbarHeight: -10,
-      ),
-      backgroundColor: backgroundColor,
-      body: Stack(
-        children: [
-          // 1. Full Screen Gradient Background
-          // 2. Main Content inside SafeArea and MediaQuery handling
-          SafeArea(
-            child: MediaQuery.removePadding(
-              context: context,
-              removeBottom: true,
-              child: Column(
-                children: [
-                  // --- Custom Header ---
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildHeader(),
-                  ),
-
-                  // --- Scrollable Content Area ---
-                  Expanded(
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          child: Column(
-                            children: [
-                              // --- New Avatar Card ---
-                              _buildAvatarCard(
-                                name: "John Doe",
-                                position: "Senior Flutter Developer",
-                                department: "IT Department",
-                                status: "Karyawan Tetap",
-                              ),
-
-                              SizedBox(height: 16),
-
-                              // --- Data Karyawan Card ---
-                              _buildEmployeeDataCard(),
-
-                              SizedBox(height: 16),
-
-                              // --- Informasi Kontak Card ---
-                              _buildContactInfoCard(),
-
-                              SizedBox(height: 32),
-
-                              // --- Edit Profile Button (Centered) ---
-                              _buildEditProfileButton(context),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- Header Implementation ---
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A49B7),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Profil Saya',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                'Kelola informasi akun Anda',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ],
-          ),
-          // Logout Button
-          _buildHeaderButton(
-            icon: Icons.edit_outlined,
-            onPressed: () {
-              context.push(UpdateProfilePage(
-                user: User(
-                  id: 1,
-                  name: "John Doe",
-                  email: "johndoe@example.com",
-                  phone: "081234567890",
-                  imageUrl: null,
-                ),
-              ));
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Common Header Button Style
-  Widget _buildHeaderButton(
-      {required IconData icon, required VoidCallback onPressed}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 22),
-        onPressed: onPressed,
-      ),
-    );
-  }
-
-  // --- New Avatar Card Implementation ---
-  Widget _buildAvatarCard({
-    required String name,
-    required String position,
-    required String department,
-    required String status,
-  }) {
-    final primaryColor = const Color(0xFF1955AF);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-            ),
-            child: CircleAvatar(
-              radius: 40,
-              backgroundColor: Colors.grey[100],
-              child: Icon(
-                Icons.person_rounded,
-                size: 50,
-                color: Colors.grey[400],
-              ),
-            ),
-          ),
-          SizedBox(width: 10),
-          // User Details
-          Expanded(
-            child: Column(
+        automaticallyImplyLeading: false,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name,
+                  'Profil Saya',
                   style: GoogleFonts.poppins(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey[900],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 6),
-                // Position Badge
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE3EDFA),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    position,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: primaryColor,
-                    ),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 8),
-                // Department with Icon
-                IntrinsicHeight(
-                  child: Row(
-                    children: [
-                      Icon(Icons.business_outlined,
-                          size: 14, color: Colors.grey[500]),
-                      SizedBox(width: 6),
-                      Text(
-                        department,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      VerticalDivider(
-                        width: 20,
-                        thickness: 1,
-                        color: Colors.black,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          status,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF2E7D32),
-                          ),
-                        ),
-                      )
-                    ],
+                Text(
+                  'Kelola informasi akun Anda',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.9),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            InkWell(
+              onTap: () {},
+              child: Icon(
+                Icons.edit,
+                color: Colors.white,
+              ),
+            )
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: BlocBuilder<GetUserBloc, GetUserState>(
+          builder: (context, state) {
+            return state.maybeWhen(
+              loading: () => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              error: (message) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(color: Colors.red),
+                  ),
+                ),
+              ),
+              success: (user) {
+                // Objek 'user' di sini bertipe UserResponseModel
+                final employee = user.employee;
+
+                return SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        const SpaceHeight(16),
+
+                        // --- CARD 1: PROFILE BRIEF (DATA DINAMIS) ---
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 36,
+                                backgroundColor: Colors.grey[200],
+                                backgroundImage: user.avatar != null &&
+                                        user.avatar!.isNotEmpty
+                                    ? NetworkImage(user.avatar!)
+                                    : null,
+                                child:
+                                    user.avatar == null || user.avatar!.isEmpty
+                                        ? Icon(Icons.person,
+                                            size: 44, color: Colors.grey[400])
+                                        : null,
+                              ),
+                              const SpaceWidth(16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      user.name != null && user.name!.isNotEmpty
+                                          ? user.name!
+                                              .split(' ')
+                                              .take(2)
+                                              .join(' ')
+                                          : '-',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    SpaceHeight(2),
+                                    Text(
+                                      user.roleLabel ?? 'Karyawan',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 13,
+                                          color: Color(0xFF0A49B7),
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                    const SpaceHeight(10),
+                                    Row(
+                                      children: [
+                                        _buildBadge(
+                                            // Menampilkan ID Divisi dari relasi employee
+                                            employee?.namePosition ?? '-',
+                                            const Color(0xFFF0F4F8),
+                                            Colors.grey[700]!),
+                                        const SpaceWidth(8),
+                                        _buildBadge(
+                                            // Menampilkan ID Divisi dari relasi employee
+                                            getEmployeeType(
+                                                employee?.typeEmployee),
+                                            const Color(0xFFF0F8F2),
+                                            Colors.green[600]!),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SpaceHeight(16),
+
+                        // --- CARD 2: DATA KARYAWAN (DATA DINAMIS) ---
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(
+                                  Icons.badge_outlined, 'Data Karyawan'),
+                              const Divider(
+                                height: 24,
+                                thickness: 1,
+                                color: Colors.black26,
+                              ),
+                              _buildRowItem('NIP', employee?.nip ?? '-',
+                                  'assets/icons/personCard.svg'),
+                              _buildRowItem(
+                                  'Jabatan',
+                                  employee?.namePosition ?? '-',
+                                  'assets/icons/workoutline.svg'),
+                              _buildRowItem(
+                                  'Divisi',
+                                  employee?.nameDivision ?? '-',
+                                  'assets/icons/building.svg'),
+                              _buildRowItem(
+                                  'Tanggal Masuk',
+                                  employee?.dateIn ?? '-',
+                                  'assets/icons/calendarStart.svg',
+                                  isLast: true),
+                            ],
+                          ),
+                        ),
+
+                        const SpaceHeight(16),
+
+                        // --- CARD 3: INFORMASI KONTAK (DATA DINAMIS) ---
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(Icons.contact_phone_outlined,
+                                  'Informasi Kontak'),
+                              const Divider(
+                                height: 24,
+                                thickness: 1,
+                                color: Colors.black26,
+                              ),
+                              _buildRowItem('Nomor HP', employee?.noHp ?? '-',
+                                  'assets/icons/phone_outline.svg'),
+                              _buildRowItem('Email', user.email ?? '-',
+                                  'assets/icons/emailOutline.svg'),
+                              _buildRowItem(
+                                  'Alamat',
+                                  employee?.fullAddress ??
+                                      '-', // Tempat lahir digunakan sementara sebagai data alamat jika kolom alamat terpisah belum ada
+                                  'assets/icons/locationOutline.svg'),
+                            ],
+                          ),
+                        ),
+
+                        const SpaceHeight(24),
+
+                        // --- BUTTON LOGOUT ---
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0C54BE),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              _showLogoutDialog();
+                            },
+                            icon: const Icon(Icons.logout,
+                                color: Colors.white, size: 20),
+                            label: Text(
+                              'Logout',
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SpaceHeight(15),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              orElse: () => const Center(
+                child: Text('Memuat data profil...'),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
-  // --- Data Karyawan Card Implementation ---
-  Widget _buildEmployeeDataCard() {
-    return _buildInfoCard(
-      icon: Icons.badge_outlined,
-      title: 'Data Karyawan',
+  Widget _buildSectionTitle(IconData icon, String title) {
+    return Row(
       children: [
-        _buildInfoRow(
-          icon: Icons.badge_outlined,
-          label: 'NIK Karyawan',
-          value: 'EMP12345678',
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C54BE),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
         ),
-        _buildInfoRow(
-          icon: Icons.work_outline_rounded,
-          label: 'Jabatan',
-          value: 'Senior Flutter Developer',
-        ),
-        _buildInfoRow(
-          icon: Icons.business_outlined,
-          label: 'Divisi',
-          value: 'IT Department',
-        ),
-        _buildInfoRow(
-          icon: Icons.calendar_today_outlined,
-          label: 'Tanggal Masuk',
-          value: '01 Januari 2023',
+        const SpaceWidth(12),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
       ],
     );
   }
 
-  // --- Informasi Kontak Card Implementation ---
-  Widget _buildContactInfoCard() {
-    return _buildInfoCard(
-      icon: Icons.contact_mail_outlined,
-      title: 'Informasi Kontak',
+  Widget _buildRowItem(String label, String value, String svgPath,
+      {bool isLast = false}) {
+    return Column(
       children: [
-        _buildInfoRow(
-          icon: Icons.phone_outlined,
-          label: 'Nomor HP',
-          value: '081234567890',
-        ),
-        _buildInfoRow(
-          icon: Icons.mail_outline_rounded,
-          label: 'Email',
-          value: 'johndoe@example.com',
-        ),
-        _buildInfoRow(
-          icon: Icons.location_on_outlined,
-          label: 'Alamat',
-          value: 'Jl. Merdeka No. 123, Kecamatan Sukajadi, Kota Bandung, 40111',
-          isLongText: true,
-        ),
-        _buildInfoRow(
-          icon: Icons.contact_phone_outlined,
-          label: 'Kontak Darurat',
-          value: 'Ibu Jane Doe (081298765432)',
-          isLongText: true,
-        ),
-      ],
-    );
-  }
-
-  // --- Common Info Card Style ---
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required List<Widget> children,
-  }) {
-    final primaryColor = const Color(0xFF1955AF);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Card Header
-          Row(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-              SizedBox(width: 16),
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[900],
+                    color: const Color(0xff0c54be).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(4)),
+                child: SvgPicture.asset(
+                  svgPath,
+                  width: 18,
+                  height: 17,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF0C54BE),
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
+              const SpaceWidth(10),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 4,
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5)
             ],
           ),
-          SizedBox(height: 12),
-          // Card Rows
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  // --- Common Info Row Style (Modified to match image) ---
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    bool isStatus = false,
-    bool isLongText = false,
-    Color? valueColor,
-  }) {
-    final rowPadding = isStatus ? 10.0 : 16.0;
-
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: rowPadding),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[200]!,
-            width: 1,
-          ),
         ),
-      ),
-      child: Row(
-        children: [
-          // Icon Container
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: const Color(0xFF1955AF),
-            ),
+        if (!isLast)
+          const Divider(
+            height: 22,
+            thickness: 1,
+            color: Colors.black12,
           ),
-          SizedBox(width: 10),
-          // Label text
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
-          ),
-          const Spacer(),
-          // Value text or Status Badge
-          Expanded(
-            flex: isLongText ? 2 : 0,
-            child: isStatus
-                ? _buildStatusBadge(value, valueColor!)
-                : Text(
-                    value,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
-                    ),
-                    textAlign: TextAlign.end,
-                    maxLines: isLongText ? 3 : 1,
-                    overflow: isLongText
-                        ? TextOverflow.visible
-                        : TextOverflow.ellipsis,
-                  ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  // Green Status Badge Style
-  Widget _buildStatusBadge(String status, Color color) {
+  Widget _buildBadge(String text, Color bgColor, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(10),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        status,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  // --- Centered Edit Profile Button Style ---
-  Widget _buildEditProfileButton(BuildContext context) {
-    final primaryColor = const Color(0xFF1955AF);
-
-    return Align(
-      alignment: Alignment.center,
-      child: Container(
-        width: double.infinity, // Set fixed width
-        height: 52,
-        decoration: BoxDecoration(
-          color: primaryColor,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: primaryColor.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => _showLogoutDialog(),
-            child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.logout_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Logout',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+      child: Row(
+        children: [
+          Text(
+            text,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // --- Common Space Helpers ---
-  // (Assuming these might already exist in context.spaceWidth etc. or create them)
-  // Widget SpaceWidth(double width) => SizedBox(width: width);
-  // Widget SpaceHeight(double height) => SizedBox(height: height);
-
-  // Re-creating helpers if core.dart doesn't provide the exact name
-  Widget SpaceWidth(double width) => SizedBox(width: width);
-  Widget SpaceHeight(double height) => SizedBox(height: height);
-
-  // --- Common Dialogs ---
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Konfirmasi Logout',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
         ),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: Colors.white,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Red Logout Icon Container
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: Colors.red,
-                  size: 32,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Confirm Logout',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[900],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Are you sure you want to logout from your account?',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 24),
-              Row(
-                children: [
-                  // Cancel Button
-                  Expanded(
-                    child: _buildDialogButton(
-                      text: 'Cancel',
-                      color: Colors.grey[100]!,
-                      textColor: Colors.grey[700]!,
-                      onPressed: () => Navigator.pop(context),
-                      hasBorder: true,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  // Logout Button
-                  Expanded(
-                    child: _buildDialogButton(
-                      text: 'Logout',
-                      color: Colors.red,
-                      textColor: Colors.white,
-                      onPressed: () {
-                        Navigator.pop(context);
-                        context.pushReplacement(const LoginPage());
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        content: Text(
+          'Apakah Anda yakin ingin keluar dari akun Anda?',
+          style: GoogleFonts.poppins(),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Batal',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await AuthLocalDatasource().removeAuthData();
+
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              }
+            },
+            child: Text(
+              'Keluar',
+              style: GoogleFonts.poppins(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // Common Dialog Button Style
-  Widget _buildDialogButton({
-    required String text,
-    required Color color,
-    required Color textColor,
-    required VoidCallback onPressed,
-    bool hasBorder = false,
-  }) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        border: hasBorder ? Border.all(color: Colors.grey[300]!) : null,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onPressed,
-          child: Center(
-            child: Text(
-              text,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+  String getEmployeeType(String? type) {
+    switch (type) {
+      case '1':
+        return 'Kontrak';
+      case '2':
+        return 'Magang';
+      case '3':
+        return 'Tetap';
+      default:
+        return '-';
+    }
   }
 }

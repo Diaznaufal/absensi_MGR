@@ -360,10 +360,18 @@ class _AttendanceSuccessPageState extends State<AttendanceSuccessPage>
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () {
+                          // 1. Kirim perintah refresh ke bloc absensi
                           context
                               .read<IsCheckedinBloc>()
                               .add(const IsCheckedinEvent.isCheckedIn());
-                          context.popToRoot();
+
+                          // 2. Berikan jeda 150ms lalu bersihkan stack kembali ke beranda paling awal
+                          Future.delayed(const Duration(milliseconds: 150), () {
+                            if (context.mounted) {
+                              Navigator.of(context)
+                                  .popUntil((route) => route.isFirst);
+                            }
+                          });
                         },
                         child: Center(
                           child: Text(

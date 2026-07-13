@@ -395,7 +395,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(AbsentStatus data)? success,
+    TResult Function(Map<String, dynamic> absenceData)? success,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -406,7 +406,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
       case _Loading() when loading != null:
         return loading();
       case _Success() when success != null:
-        return success(_that.data);
+        return success(_that.absenceData);
       case _Error() when error != null:
         return error(_that.message);
       case _:
@@ -431,7 +431,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(AbsentStatus data) success,
+    required TResult Function(Map<String, dynamic> absenceData) success,
     required TResult Function(String message) error,
   }) {
     final _that = this;
@@ -441,7 +441,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
       case _Loading():
         return loading();
       case _Success():
-        return success(_that.data);
+        return success(_that.absenceData);
       case _Error():
         return error(_that.message);
       case _:
@@ -465,7 +465,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(AbsentStatus data)? success,
+    TResult? Function(Map<String, dynamic> absenceData)? success,
     TResult? Function(String message)? error,
   }) {
     final _that = this;
@@ -475,7 +475,7 @@ extension IsCheckedinStatePatterns on IsCheckedinState {
       case _Loading() when loading != null:
         return loading();
       case _Success() when success != null:
-        return success(_that.data);
+        return success(_that.absenceData);
       case _Error() when error != null:
         return error(_that.message);
       case _:
@@ -527,9 +527,15 @@ class _Loading implements IsCheckedinState {
 /// @nodoc
 
 class _Success implements IsCheckedinState {
-  const _Success(this.data);
+  const _Success(final Map<String, dynamic> absenceData)
+      : _absenceData = absenceData;
 
-  final AbsentStatus data;
+  final Map<String, dynamic> _absenceData;
+  Map<String, dynamic> get absenceData {
+    if (_absenceData is EqualUnmodifiableMapView) return _absenceData;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_absenceData);
+  }
 
   /// Create a copy of IsCheckedinState
   /// with the given fields replaced by the non-null parameter values.
@@ -543,15 +549,17 @@ class _Success implements IsCheckedinState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _Success &&
-            (identical(other.data, data) || other.data == data));
+            const DeepCollectionEquality()
+                .equals(other._absenceData, _absenceData));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, data);
+  int get hashCode => Object.hash(
+      runtimeType, const DeepCollectionEquality().hash(_absenceData));
 
   @override
   String toString() {
-    return 'IsCheckedinState.success(data: $data)';
+    return 'IsCheckedinState.success(absenceData: $absenceData)';
   }
 }
 
@@ -561,7 +569,7 @@ abstract mixin class _$SuccessCopyWith<$Res>
   factory _$SuccessCopyWith(_Success value, $Res Function(_Success) _then) =
       __$SuccessCopyWithImpl;
   @useResult
-  $Res call({AbsentStatus data});
+  $Res call({Map<String, dynamic> absenceData});
 }
 
 /// @nodoc
@@ -575,13 +583,13 @@ class __$SuccessCopyWithImpl<$Res> implements _$SuccessCopyWith<$Res> {
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? data = null,
+    Object? absenceData = null,
   }) {
     return _then(_Success(
-      null == data
-          ? _self.data
-          : data // ignore: cast_nullable_to_non_nullable
-              as AbsentStatus,
+      null == absenceData
+          ? _self._absenceData
+          : absenceData // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
     ));
   }
 }

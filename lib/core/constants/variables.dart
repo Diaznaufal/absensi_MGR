@@ -1,23 +1,24 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_absensi_app/data/datasources/auth_local_datasource.dart';
 
 class Variables {
-  static const String appName = 'GeoFace Attendance';
-  // static const String baseUrl = 'https://hr.jagofullstack.com';
-  static const String baseUrl = 'http://192.168.100.76:8000';
-//   static const bool isEmulator = false;
+  static const String appName = 'Absensi MGR';
+  static const String baseUrl = 'https://testing.multigraharadhika.co.id/api';
 
-//   static String get baseUrl {
-//     // Flutter Web
-//     if (kIsWeb) {
-//       return 'http://127.0.0.1:8000';
-//     }
+  static Map<String, String> header() {
+    return {
+      'Accept': 'application/json',
+      'X-API-KEY': 'mgr-api-10519190',
+    };
+  }
 
-//     // Android Emulator
-//     if (isEmulator) {
-//       return 'http://10.0.2.2:8000';
-//     }
+  // Dibuat async agar otomatis mengambil token user yang sedang login
+  static Future<Map<String, String>> authenticHeaders() async {
+    final authData = await AuthLocalDatasource().getAuthData();
 
-//     // HP Fisik
-//     return 'http://192.168.100.76:8000';
-//   }
+    return {
+      'Accept': 'application/json',
+      'X-API-KEY': 'mgr-api-10519190',
+      'Authorization': 'Bearer ${authData?.accessToken ?? authData?.token}',
+    };
+  }
 }

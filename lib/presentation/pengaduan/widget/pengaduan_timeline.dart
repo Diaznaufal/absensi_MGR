@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_absensi_app/presentation/pengaduan/model/timeline_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +15,9 @@ class TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = timeline.color;
+    final inactiveColor = Colors.grey.shade300;
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,12 +29,10 @@ class TimelineCard extends StatelessWidget {
                 height: 18,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color:
-                      timeline.isActive ? timeline.color : Colors.grey.shade300,
+                  color: timeline.isActive ? activeColor : inactiveColor,
                   border: Border.all(
-                    color: timeline.isActive
-                        ? timeline.color
-                        : Colors.grey.shade400,
+                    color:
+                        timeline.isActive ? activeColor : Colors.grey.shade400,
                     width: 2,
                   ),
                 ),
@@ -41,10 +41,10 @@ class TimelineCard extends StatelessWidget {
                 Expanded(
                   child: Container(
                     width: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: timeline.isActive
-                        ? timeline.color
-                        : Colors.grey.shade300,
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 4,
+                    ),
+                    color: timeline.isActive ? activeColor : inactiveColor,
                   ),
                 ),
             ],
@@ -61,25 +61,30 @@ class TimelineCard extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: timeline.isActive ? timeline.color : Colors.grey,
+                      color: timeline.isActive ? activeColor : Colors.grey,
                     ),
                   ),
                   Text(
                     timeline.description,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
+                      color: timeline.isActive
+                          ? Colors.black87
+                          : Colors.grey.shade600,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    DateFormat(
-                      'dd-MM-yyyy • HH:mm',
-                    ).format(timeline.date),
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black54,
+                  if (timeline.date != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      DateFormat(
+                        'dd-MM-yyyy',
+                      ).format(timeline.date!),
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

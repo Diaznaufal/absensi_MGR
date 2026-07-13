@@ -15,15 +15,23 @@ class GetAttendanceByDateBloc
     this.datasource,
   ) : super(const _Initial()) {
     on<_GetAttendanceByDate>((event, emit) async {
-      emit(const _Loading());
-      final result = await datasource.getAttendance(event.date);
-      result.fold((message) => emit(_Error(message)), (attendance) {
-        if (attendance.data!.isEmpty) {
-          emit(const _Empty());
-        } else {
-          emit(_Loaded(attendance.data!.first));
-        }
-      });
-    });
+  emit(const _Loading());
+  
+  // GANTI: Panggil getScheduleToday() untuk mengambil jadwal aktif hari ini
+  final result = await datasource.getScheduleToday();
+  
+  result.fold(
+    (message) => emit(_Error(message)),
+    (scheduleMap) {
+      if (scheduleMap.isEmpty) {
+        emit(const _Empty());
+      } else {
+        // Karena responsenya berbentuk Map (bukan List lagi seperti versi lama),
+        // sesuaikan state Loaded kamu untuk menerima objek Map tersebut.
+        emit(_Loaded(scheduleMap));
+      }
+    },
+  );
+});
   }
 }

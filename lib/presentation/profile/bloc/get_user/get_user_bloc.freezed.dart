@@ -393,7 +393,7 @@ extension GetUserStatePatterns on GetUserState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(User user)? success,
+    TResult Function(UserResponseModel user)? success,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -429,7 +429,7 @@ extension GetUserStatePatterns on GetUserState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(User user) success,
+    required TResult Function(UserResponseModel user) success,
     required TResult Function(String message) error,
   }) {
     final _that = this;
@@ -463,7 +463,7 @@ extension GetUserStatePatterns on GetUserState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(User user)? success,
+    TResult? Function(UserResponseModel user)? success,
     TResult? Function(String message)? error,
   }) {
     final _that = this;
@@ -527,7 +527,7 @@ class _Loading implements GetUserState {
 class _Success implements GetUserState {
   const _Success(this.user);
 
-  final User user;
+  final UserResponseModel user;
 
   /// Create a copy of GetUserState
   /// with the given fields replaced by the non-null parameter values.
@@ -559,7 +559,7 @@ abstract mixin class _$SuccessCopyWith<$Res>
   factory _$SuccessCopyWith(_Success value, $Res Function(_Success) _then) =
       __$SuccessCopyWithImpl;
   @useResult
-  $Res call({User user});
+  $Res call({UserResponseModel user});
 }
 
 /// @nodoc
@@ -579,7 +579,7 @@ class __$SuccessCopyWithImpl<$Res> implements _$SuccessCopyWith<$Res> {
       null == user
           ? _self.user
           : user // ignore: cast_nullable_to_non_nullable
-              as User,
+              as UserResponseModel,
     ));
   }
 }

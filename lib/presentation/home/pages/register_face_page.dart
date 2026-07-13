@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_absensi_app/core/core.dart';
 
@@ -30,10 +32,14 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     options: FaceDetectorOptions(
       enableContours: false,
       enableLandmarks: false,
+      enableClassification: true,
     ),
   );
   bool _canProcess = true;
   bool _isBusy = false;
+  bool _isDisposed = false;
+  bool _isModelDownloaded = false;
+  bool _isCameraInitialized = false;
   CustomPaint? _customPaint;
   var _cameraLensDirection = CameraLensDirection.front;
 
@@ -42,28 +48,62 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
 
   late Recognizer recognizer;
   bool isTakePicture = false;
-
+  bool _isRegisterLoading = false;
+  String _cameraKey = 'initial_camera_key';
   @override
   void initState() {
     super.initState();
     recognizer = Recognizer();
+    _checkAndDownloadFaceModel();
   }
 
   @override
   void dispose() {
     _canProcess = false;
+    _isDisposed = true;
     _faceDetector.close();
     super.dispose();
   }
 
+  Future<void> _checkAndDownloadFaceModel() async {
+    try {
+      log('📥 Menunggu inisialisasi awal Google Play Services di background...');
+      await Future.delayed(const Duration(milliseconds: 2200));
+      log('✅ Jeda selesai. Membuka gerbang pemrosesan.');
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isModelDownloaded = true;
+        });
+      }
+    } catch (e) {
+      log('❌ Terjadi kesalahan pada jeda inisialisasi: $e');
+      if (mounted && !_isDisposed) {
+        setState(() {
+          _isModelDownloaded = true;
+        });
+      }
+    }
+  }
+
   void _takePicture(CameraImage cameraImage) async {
-    log('🎯 _takePicture called');
+    if (_isDisposed) return;
+    log('🎯 _takePicture dipanggil dari kedipan sukses berkualitas');
+
     setState(() {
       frame = cameraImage;
-      currentCameraImage = cameraImage; // Store the camera image for processing
-      isTakePicture = true;
+      currentCameraImage = cameraImage;
     });
-    log('📸 Frame captured, isTakePicture = $isTakePicture, currentCameraImage = ${currentCameraImage != null}');
+
+    // Jalankan ekstraksi wajah secara aman karena posisi dipastikan pas dari kamera view
+    final inputImage = _inputImageFromCameraImage(cameraImage);
+    if (inputImage != null) {
+      final faces = await _faceDetector.processImage(inputImage);
+      if (faces.isNotEmpty) {
+        await performFaceRegistration(faces);
+      } else {
+        if (mounted) context.showError("Gagal memproses detail kontur wajah.");
+      }
+    }
   }
 
   img.Image? image;
@@ -75,81 +115,61 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     log('🔄 performFaceRegistration called with ${faces.length} faces');
     recognitions.clear();
 
-    // Use currentCameraImage from the stream
-    if (currentCameraImage == null) {
-      log('❌ No camera image available');
-      if (mounted) {
-        context.showError("Gagal mengambil gambar. Silakan coba lagi.");
-      }
+    final CameraImage? imgFrame = currentCameraImage;
+    if (imgFrame == null) {
       return;
     }
 
     try {
-      image = convertNV21ToImage(currentCameraImage!);
-      log('🖼️  Image converted from CameraImage');
-    } catch (e) {
-      log('❌ Error converting image: $e');
-      if (mounted) {
-        context.showError("Gagal memproses gambar. Silakan coba lagi.");
-      }
-      return;
-    }
-
-    image = img.copyRotate(
-      image!,
-      angle: _cameraLensDirection == CameraLensDirection.front ? 270 : 90,
-    );
-    log('🔄 Image rotated');
-
-    for (Face face in faces) {
-      Rect faceRect = face.boundingBox;
-      log('👤 Processing face with bounding box: $faceRect');
-
-      img.Image croppedFace = img.copyCrop(
+      image = convertNV21ToImage(imgFrame);
+      if (image == null) return;
+      image = img.copyRotate(
         image!,
-        x: faceRect.left.toInt(),
-        y: faceRect.top.toInt(),
-        width: faceRect.width.toInt(),
-        height: faceRect.height.toInt(),
+        angle: _cameraLensDirection == CameraLensDirection.front ? 270 : 90,
       );
-      log('✂️  Face cropped');
 
-      RecognitionEmbedding recognition = recognizer.recognize(
+      final Face face = faces.first;
+      Rect faceRect = face.boundingBox;
+
+      final imgWidth = image!.width;
+      final imgHeight = image!.height;
+
+      final left = faceRect.left.toInt().clamp(0, imgWidth - 1);
+      final top = faceRect.top.toInt().clamp(0, imgHeight - 1);
+      final right = faceRect.right.toInt().clamp(left + 1, imgWidth);
+      final bottom = faceRect.bottom.toInt().clamp(top + 1, imgHeight);
+
+      final cropWidth = right - left;
+      final cropHeight = bottom - top;
+
+      if (cropWidth <= 0 || cropHeight <= 0) return;
+
+      final img.Image croppedFace = img.copyCrop(
+        image!,
+        x: left,
+        y: top,
+        width: cropWidth,
+        height: cropHeight,
+      );
+
+      final RecognitionEmbedding recognition = recognizer.recognize(
         croppedFace,
         face.boundingBox,
       );
-      log('🧠 Face recognition completed, embedding size: ${recognition.embedding.length}');
 
-      recognitions.add(recognition);
-
-      if (!mounted) return;
-
-      // For registration, we don't need to validate against existing face
-      // Just check if we got a valid embedding (non-empty)
-      if (recognition.embedding.isNotEmpty) {
-        log('✨ Face embedding generated successfully, preparing to show dialog');
-        // Store captured data for dialog
+      if (recognition.embedding.isNotEmpty && mounted) {
         capturedImage = image;
         capturedEmbedding = recognition.embedding;
-
-        // Show confirmation dialog
-        log('📱 Showing confirmation dialog');
         _showConfirmationDialog();
-      } else {
-        log('❌ Failed to generate face embedding');
-        context.showError("Gagal memproses wajah. Silakan coba lagi.");
       }
+    } catch (e) {
+      log('❌ Error processing face crop: $e');
     }
   }
 
   void _showConfirmationDialog() {
-    log('🎭 _showConfirmationDialog called');
-    if (capturedImage == null) {
-      log('❌ capturedImage is null, cannot show dialog');
-      return;
-    }
+    if (capturedImage == null) return;
 
-    log('✅ Showing dialog with captured image');
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -162,26 +182,23 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Title
               Text(
                 'Konfirmasi Foto Wajah',
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1e3c72),
+                  color: const Color(0xFF0A49B7),
                 ),
                 textAlign: TextAlign.center,
               ),
               const SpaceHeight(20),
-
-              // Captured Image
               Container(
                 width: 250,
                 height: 250,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFF1e3c72),
+                    color: const Color(0xFF0A49B7),
                     width: 2,
                   ),
                 ),
@@ -192,8 +209,6 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
                 ),
               ),
               const SpaceHeight(20),
-
-              // Description
               Text(
                 'Pastikan wajah Anda terlihat jelas pada foto di atas',
                 style: GoogleFonts.poppins(
@@ -203,23 +218,27 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
                 textAlign: TextAlign.center,
               ),
               const SpaceHeight(24),
-
-              // Buttons
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        log('🔄 User clicked Ulangi button');
-                        Navigator.pop(dialogContext);
-                        setState(() {
-                          capturedImage = null;
-                          capturedEmbedding = null;
-                        });
-                      },
+                      onPressed: _isRegisterLoading
+                          ? null
+                          : () {
+                              Navigator.pop(dialogContext);
+                              setState(() {
+                                _cameraKey = DateTime.now()
+                                    .millisecondsSinceEpoch
+                                    .toString();
+                                frame = null;
+                                currentCameraImage = null;
+                                capturedImage = null;
+                                capturedEmbedding = null;
+                              });
+                            },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF1e3c72)),
+                        side: const BorderSide(color: Color(0xFF0A49B7)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -229,7 +248,7 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1e3c72),
+                          color: const Color(0xFF0A49B7),
                         ),
                       ),
                     ),
@@ -237,40 +256,73 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
                   const SpaceWidth(12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        log('✅ User clicked Daftar button');
-                        Navigator.pop(dialogContext);
-                        // Register face embedding
-                        if (capturedEmbedding != null) {
-                          log('📤 Sending face embedding to backend, size: ${capturedEmbedding!.length}');
-                          final embeddingString = capturedEmbedding!.join(',');
-                          log('📝 Embedding string preview: ${embeddingString.substring(0, embeddingString.length > 100 ? 100 : embeddingString.length)}...');
-                          context.read<UpdateUserRegisterFaceBloc>().add(
-                                UpdateUserRegisterFaceEvent
-                                    .updateProfileRegisterFace(
-                                  embeddingString,
-                                  null,
-                                ),
-                              );
-                        } else {
-                          log('❌ capturedEmbedding is null!');
-                        }
-                      },
+                      onPressed: _isRegisterLoading
+                          ? null
+                          : () async {
+                              if (_isRegisterLoading) return;
+                              setState(() {
+                                _isRegisterLoading = true;
+                              });
+
+                              try {
+                                final tempDir = await getTemporaryDirectory();
+                                final uniqueSuffix =
+                                    DateTime.now().millisecondsSinceEpoch;
+                                final fileImagePath =
+                                    '${tempDir.path}/face_register_$uniqueSuffix.jpg';
+                                final file = File(fileImagePath);
+
+                                final resizedImage =
+                                    img.copyResize(capturedImage!, width: 480);
+                                await file.writeAsBytes(
+                                    img.encodeJpg(resizedImage, quality: 85));
+
+                                if (!mounted) return;
+
+                                context.read<UpdateUserRegisterFaceBloc>().add(
+                                      UpdateUserRegisterFaceEvent
+                                          .updateProfileRegisterFace(
+                                        fileImagePath,
+                                        null,
+                                      ),
+                                    );
+
+                                Navigator.pop(dialogContext);
+                              } catch (e) {
+                                if (mounted) {
+                                  setState(() {
+                                    _isRegisterLoading = false;
+                                  });
+                                  context.showError(
+                                      "Gagal menyiapkan file registrasi.");
+                                }
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1e3c72),
+                        backgroundColor: const Color(0xFF0A49B7),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        'Daftar',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: _isRegisterLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              'Daftar',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -282,48 +334,119 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     );
   }
 
-  img.Image convertNV21ToImage(CameraImage cameraImage) {
-    final width = cameraImage.width.toInt();
-    final height = cameraImage.height.toInt();
+  img.Image? convertNV21ToImage(CameraImage cameraImage) {
+    try {
+      final width = cameraImage.width.toInt();
+      final height = cameraImage.height.toInt();
+      final yPlane = cameraImage.planes[0].bytes;
+      final uvPlane = cameraImage.planes[1].bytes;
+      final outImg = img.Image(height: height, width: width);
 
-    // Get Y plane
-    final yPlane = cameraImage.planes[0].bytes;
-    final uvPlane = cameraImage.planes[1].bytes;
+      for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+          final yIndex = y * width + x;
+          final uvIndex = ((y >> 1) * (width >> 1) + (x >> 1)) * 2;
 
-    final outImg = img.Image(height: height, width: width);
+          if (yIndex >= yPlane.length || uvIndex + 1 >= uvPlane.length)
+            continue;
 
-    // Convert YUV to RGB
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        final yIndex = y * width + x;
+          final yValue = yPlane[yIndex];
+          final uValue = uvPlane[uvIndex];
+          final vValue = uvPlane[uvIndex + 1];
 
-        // UV plane has half resolution (subsampling)
-        final uvIndex = ((y >> 1) * (width >> 1) + (x >> 1)) * 2;
+          int r = (yValue + 1.370705 * (vValue - 128)).toInt();
+          int g =
+              (yValue - 0.337633 * (uValue - 128) - 0.698001 * (vValue - 128))
+                  .toInt();
+          int b = (yValue + 1.732446 * (uValue - 128)).toInt();
 
-        // Ensure indices are within bounds
-        if (yIndex >= yPlane.length || uvIndex + 1 >= uvPlane.length) {
-          continue;
+          outImg.setPixelRgb(
+              x, y, r.clamp(0, 255), g.clamp(0, 255), b.clamp(0, 255));
         }
-
-        final yValue = yPlane[yIndex];
-        final uValue = uvPlane[uvIndex];
-        final vValue = uvPlane[uvIndex + 1];
-
-        // Convert YUV to RGB
-        int r = (yValue + 1.370705 * (vValue - 128)).toInt();
-        int g = (yValue - 0.337633 * (uValue - 128) - 0.698001 * (vValue - 128))
-            .toInt();
-        int b = (yValue + 1.732446 * (uValue - 128)).toInt();
-
-        // Clamp values to valid RGB range
-        r = r.clamp(0, 255);
-        g = g.clamp(0, 255);
-        b = b.clamp(0, 255);
-
-        outImg.setPixelRgb(x, y, r, g, b);
       }
+      return outImg;
+    } catch (_) {
+      return null;
     }
-    return outImg;
+  }
+
+  InputImage? _inputImageFromCameraImage(CameraImage image) {
+    try {
+      final orientations = {
+        DeviceOrientation.portraitUp: 0,
+        DeviceOrientation.landscapeLeft: 90,
+        DeviceOrientation.portraitDown: 180,
+        DeviceOrientation.landscapeRight: 270,
+      };
+
+      final rotationCompensation = orientations[DeviceOrientation.portraitUp]!;
+      final rotation = InputImageRotationValue.fromRawValue(
+          (270 + rotationCompensation) % 360)!;
+
+      final width = image.width;
+      final height = image.height;
+      final yPlane = image.planes[0].bytes;
+      final uPlane = image.planes[1].bytes;
+      final vPlane = image.planes[2].bytes;
+
+      final nv21 = Uint8List(width * height + (width * height ~/ 2));
+      nv21.setRange(0, width * height, yPlane);
+
+      int offset = width * height;
+      final chromaRowStride = image.planes[1].bytesPerRow;
+      final chromaPixelStride = image.planes[1].bytesPerPixel!;
+
+      for (int row = 0; row < height ~/ 2; row++) {
+        for (int col = 0; col < width ~/ 2; col++) {
+          final idx = row * chromaRowStride + col * chromaPixelStride;
+          nv21[offset++] = vPlane[idx];
+          nv21[offset++] = uPlane[idx];
+        }
+      }
+
+      final metadata = InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: InputImageFormat.nv21,
+        bytesPerRow: image.width,
+      );
+
+      return InputImage.fromBytes(bytes: nv21, metadata: metadata);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildSingleUnifiedLoading() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1e3c72), Color(0xFF2a5298)],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              strokeWidth: 3,
+            ),
+            const SpaceHeight(20),
+            Text(
+              'Memulai kamera...',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -333,16 +456,20 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
       listener: (context, state) {
         state.maybeWhen(
           orElse: () {},
-          loading: () {},
+          loading: () {
+            setState(() {
+              _isRegisterLoading = true;
+            });
+          },
           success: (user) {
+            setState(() {
+              _isRegisterLoading = false;
+            });
             if (!mounted) return;
-
-            final navigator = Navigator.of(context);
-            context.showSuccess("Wajah berhasil didaftarkan!");
-
+            context.showSuccess("Wajah berhasil didaftarkan ke server!");
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
-                navigator.pushAndRemoveUntil(
+                Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const MainPage()),
                   (route) => false,
                 );
@@ -350,188 +477,39 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
             });
           },
           error: (message) {
-            context.showError(message);
+            setState(() {
+              _isRegisterLoading = false;
+            });
+            if (mounted) context.showError(message);
           },
         );
       },
       child: Scaffold(
         body: Stack(
           children: [
-            // Camera View
             CameraViewAttendancePage(
+              // 🆕 PERBAIKAN UTAMA: Pasang parameter Key agar membaca perubahan _cameraKey secara otomatis
+              key: ValueKey(_cameraKey),
               title: 'Register Face',
               customPaint: _customPaint,
-              onImage: _processImage,
+              onImage:
+                  (img) {}, // Kosongkan, biarkan camera view memproses alur internalnya secara mandiri
               initialCameraLensDirection: _cameraLensDirection,
-              onCameraLensDirectionChanged: (value) =>
-                  _cameraLensDirection = value,
               onTakePicture: _takePicture,
+              isModelReady: _isModelDownloaded,
+              onCameraFeedReady: () {
+                if (mounted) {
+                  setState(() {
+                    _isCameraInitialized = true;
+                  });
+                }
+              },
             ),
-
-            // Bottom Capture Button
-            // Positioned(
-            //   bottom: 40,
-            //   left: 0,
-            //   right: 0,
-            //   child: Center(
-            //     child: BlocBuilder<UpdateUserRegisterFaceBloc,
-            //         UpdateUserRegisterFaceState>(
-            //       builder: (context, state) {
-            //         return state.maybeWhen(
-            //           orElse: () => _buildCaptureButton(),
-            //           loading: () => _buildLoadingButton(),
-            //         );
-            //       },
-            //     ),
-            //   ),
-            // ),
+            if (!_isModelDownloaded || !_isCameraInitialized)
+              _buildSingleUnifiedLoading(),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildCaptureButton() {
-    return Container(
-      width: 200,
-      height: 60,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1e3c72), Color(0xFF3b82c9)],
-        ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1e3c72).withOpacity(0.5),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(30),
-          onTap: () {
-            log('👆 Capture Face button tapped');
-            // Trigger face capture
-            setState(() {
-              isTakePicture = true;
-            });
-            log('🎯 isTakePicture set to true');
-          },
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.camera_alt_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                const SpaceWidth(12),
-                Text(
-                  'Capture Face',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingButton() {
-    return Container(
-      width: 200,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1e3c72)),
-              ),
-            ),
-            const SpaceWidth(12),
-            Text(
-              'Processing...',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _processImage(
-      InputImage inputImage) async {
-    if (!_canProcess) return;
-    if (_isBusy) return;
-    _isBusy = true;
-
-    final faces = await _faceDetector.processImage(inputImage);
-    log('🔍 Detected ${faces.length} faces');
-
-    if (inputImage.metadata?.size != null &&
-        inputImage.metadata?.rotation != null) {
-      final painter = FaceDetectorPainter(
-        faces,
-        inputImage.metadata!.size,
-        inputImage.metadata!.rotation,
-        _cameraLensDirection,
-      );
-      _customPaint = CustomPaint(painter: painter);
-
-      if (isTakePicture) {
-        log('🎯 isTakePicture is TRUE, processing face registration...');
-        if (!mounted) {
-          isTakePicture = false;
-          return;
-        }
-
-        if (faces.isEmpty) {
-          log('❌ No faces detected');
-          context.showError(
-            "Tidak ada wajah yang terdeteksi. Pastikan wajah anda menghadap kamera.",
-          );
-          isTakePicture = false;
-        } else if (faces.length > 1) {
-          log('⚠️  Multiple faces detected: ${faces.length}');
-          context.showError(
-            "Terdeteksi lebih dari 1 wajah. Pastikan hanya wajah anda yang terlihat.",
-          );
-          isTakePicture = false;
-        } else {
-          log('✅ Single face detected, calling performFaceRegistration');
-          isTakePicture = false; // Reset immediately to prevent multiple calls
-          performFaceRegistration(faces);
-        }
-      }
-    } else {
-      log('⚠️  No metadata available');
-      _customPaint = null;
-    }
-    _isBusy = false;
-    if (mounted) {
-      setState(() {});
-    }
   }
 }

@@ -138,7 +138,9 @@ extension CheckoutAttendanceEventPatterns on CheckoutAttendanceEvent {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String latitute, String longitude)? checkout,
+    TResult Function(double latitude, double longitude, String imagePath,
+            String idSchedule)?
+        checkout,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -146,7 +148,8 @@ extension CheckoutAttendanceEventPatterns on CheckoutAttendanceEvent {
       case _Started() when started != null:
         return started();
       case _Checkout() when checkout != null:
-        return checkout(_that.latitute, _that.longitude);
+        return checkout(
+            _that.latitude, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         return orElse();
     }
@@ -168,14 +171,17 @@ extension CheckoutAttendanceEventPatterns on CheckoutAttendanceEvent {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String latitute, String longitude) checkout,
+    required TResult Function(double latitude, double longitude,
+            String imagePath, String idSchedule)
+        checkout,
   }) {
     final _that = this;
     switch (_that) {
       case _Started():
         return started();
       case _Checkout():
-        return checkout(_that.latitute, _that.longitude);
+        return checkout(
+            _that.latitude, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -196,14 +202,17 @@ extension CheckoutAttendanceEventPatterns on CheckoutAttendanceEvent {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String latitute, String longitude)? checkout,
+    TResult? Function(double latitude, double longitude, String imagePath,
+            String idSchedule)?
+        checkout,
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started();
       case _Checkout() when checkout != null:
-        return checkout(_that.latitute, _that.longitude);
+        return checkout(
+            _that.latitude, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         return null;
     }
@@ -233,10 +242,16 @@ class _Started implements CheckoutAttendanceEvent {
 /// @nodoc
 
 class _Checkout implements CheckoutAttendanceEvent {
-  const _Checkout(this.latitute, this.longitude);
+  const _Checkout(
+      {required this.latitude,
+      required this.longitude,
+      required this.imagePath,
+      required this.idSchedule});
 
-  final String latitute;
-  final String longitude;
+  final double latitude;
+  final double longitude;
+  final String imagePath;
+  final String idSchedule;
 
   /// Create a copy of CheckoutAttendanceEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -250,18 +265,23 @@ class _Checkout implements CheckoutAttendanceEvent {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _Checkout &&
-            (identical(other.latitute, latitute) ||
-                other.latitute == latitute) &&
+            (identical(other.latitude, latitude) ||
+                other.latitude == latitude) &&
             (identical(other.longitude, longitude) ||
-                other.longitude == longitude));
+                other.longitude == longitude) &&
+            (identical(other.imagePath, imagePath) ||
+                other.imagePath == imagePath) &&
+            (identical(other.idSchedule, idSchedule) ||
+                other.idSchedule == idSchedule));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, latitute, longitude);
+  int get hashCode =>
+      Object.hash(runtimeType, latitude, longitude, imagePath, idSchedule);
 
   @override
   String toString() {
-    return 'CheckoutAttendanceEvent.checkout(latitute: $latitute, longitude: $longitude)';
+    return 'CheckoutAttendanceEvent.checkout(latitude: $latitude, longitude: $longitude, imagePath: $imagePath, idSchedule: $idSchedule)';
   }
 }
 
@@ -271,7 +291,8 @@ abstract mixin class _$CheckoutCopyWith<$Res>
   factory _$CheckoutCopyWith(_Checkout value, $Res Function(_Checkout) _then) =
       __$CheckoutCopyWithImpl;
   @useResult
-  $Res call({String latitute, String longitude});
+  $Res call(
+      {double latitude, double longitude, String imagePath, String idSchedule});
 }
 
 /// @nodoc
@@ -285,17 +306,27 @@ class __$CheckoutCopyWithImpl<$Res> implements _$CheckoutCopyWith<$Res> {
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? latitute = null,
+    Object? latitude = null,
     Object? longitude = null,
+    Object? imagePath = null,
+    Object? idSchedule = null,
   }) {
     return _then(_Checkout(
-      null == latitute
-          ? _self.latitute
-          : latitute // ignore: cast_nullable_to_non_nullable
-              as String,
-      null == longitude
+      latitude: null == latitude
+          ? _self.latitude
+          : latitude // ignore: cast_nullable_to_non_nullable
+              as double,
+      longitude: null == longitude
           ? _self.longitude
           : longitude // ignore: cast_nullable_to_non_nullable
+              as double,
+      imagePath: null == imagePath
+          ? _self.imagePath
+          : imagePath // ignore: cast_nullable_to_non_nullable
+              as String,
+      idSchedule: null == idSchedule
+          ? _self.idSchedule
+          : idSchedule // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }

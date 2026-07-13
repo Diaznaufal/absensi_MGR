@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter_absensi_app/data/models/response/user_response_model.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../../data/datasources/user_remote_datasource.dart';
@@ -17,7 +18,7 @@ class GetUserBloc extends Bloc<GetUserEvent, GetUserState> {
       (event, emit) async {
         emit(_Loading());
 
-        final result = await datasource.getUser();
+        final result = await datasource.getProfileMe();
         result.fold(
           (l) => emit(_Error(l)),
           (r) => emit(_Success(r)),

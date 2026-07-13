@@ -449,7 +449,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(Attendance attendance)? loaded,
+    TResult Function(Map<String, dynamic> schedule)? loaded,
     TResult Function(String message)? error,
     TResult Function()? empty,
     required TResult orElse(),
@@ -461,7 +461,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
       case _Loading() when loading != null:
         return loading();
       case _Loaded() when loaded != null:
-        return loaded(_that.attendance);
+        return loaded(_that.schedule);
       case _Error() when error != null:
         return error(_that.message);
       case _Empty() when empty != null:
@@ -488,7 +488,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(Attendance attendance) loaded,
+    required TResult Function(Map<String, dynamic> schedule) loaded,
     required TResult Function(String message) error,
     required TResult Function() empty,
   }) {
@@ -499,7 +499,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
       case _Loading():
         return loading();
       case _Loaded():
-        return loaded(_that.attendance);
+        return loaded(_that.schedule);
       case _Error():
         return error(_that.message);
       case _Empty():
@@ -525,7 +525,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(Attendance attendance)? loaded,
+    TResult? Function(Map<String, dynamic> schedule)? loaded,
     TResult? Function(String message)? error,
     TResult? Function()? empty,
   }) {
@@ -536,7 +536,7 @@ extension GetAttendanceByDateStatePatterns on GetAttendanceByDateState {
       case _Loading() when loading != null:
         return loading();
       case _Loaded() when loaded != null:
-        return loaded(_that.attendance);
+        return loaded(_that.schedule);
       case _Error() when error != null:
         return error(_that.message);
       case _Empty() when empty != null:
@@ -590,9 +590,14 @@ class _Loading implements GetAttendanceByDateState {
 /// @nodoc
 
 class _Loaded implements GetAttendanceByDateState {
-  const _Loaded(this.attendance);
+  const _Loaded(final Map<String, dynamic> schedule) : _schedule = schedule;
 
-  final Attendance attendance;
+  final Map<String, dynamic> _schedule;
+  Map<String, dynamic> get schedule {
+    if (_schedule is EqualUnmodifiableMapView) return _schedule;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(_schedule);
+  }
 
   /// Create a copy of GetAttendanceByDateState
   /// with the given fields replaced by the non-null parameter values.
@@ -606,16 +611,16 @@ class _Loaded implements GetAttendanceByDateState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _Loaded &&
-            (identical(other.attendance, attendance) ||
-                other.attendance == attendance));
+            const DeepCollectionEquality().equals(other._schedule, _schedule));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, attendance);
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(_schedule));
 
   @override
   String toString() {
-    return 'GetAttendanceByDateState.loaded(attendance: $attendance)';
+    return 'GetAttendanceByDateState.loaded(schedule: $schedule)';
   }
 }
 
@@ -625,7 +630,7 @@ abstract mixin class _$LoadedCopyWith<$Res>
   factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) _then) =
       __$LoadedCopyWithImpl;
   @useResult
-  $Res call({Attendance attendance});
+  $Res call({Map<String, dynamic> schedule});
 }
 
 /// @nodoc
@@ -639,13 +644,13 @@ class __$LoadedCopyWithImpl<$Res> implements _$LoadedCopyWith<$Res> {
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? attendance = null,
+    Object? schedule = null,
   }) {
     return _then(_Loaded(
-      null == attendance
-          ? _self.attendance
-          : attendance // ignore: cast_nullable_to_non_nullable
-              as Attendance,
+      null == schedule
+          ? _self._schedule
+          : schedule // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>,
     ));
   }
 }

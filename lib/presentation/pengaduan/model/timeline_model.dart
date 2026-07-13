@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 class TimelineData {
   final String title;
   final String description;
-  final DateTime date;
-  final Color color;
+  final DateTime? date;
   final bool isActive;
+  final Color color;
 
-  TimelineData({
+  const TimelineData({
     required this.title,
     required this.description,
-    required this.date,
-    required this.color,
+    this.date,
     required this.isActive,
+    required this.color,
   });
 }

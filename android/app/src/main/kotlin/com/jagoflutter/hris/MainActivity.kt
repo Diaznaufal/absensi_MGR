@@ -1,4 +1,4 @@
-package com.jagoflutter.hris
+package com.MGR.hris
 
 import io.flutter.embedding.android.FlutterActivity
 

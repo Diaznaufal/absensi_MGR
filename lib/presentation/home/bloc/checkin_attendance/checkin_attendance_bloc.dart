@@ -18,10 +18,13 @@ class CheckinAttendanceBloc
     on<_Checkin>((event, emit) async {
       emit(const _Loading());
       final requestModel = CheckInOutRequestModel(
-        latitude: event.latitute,
-        longitude: event.longitude,
+        latitude: event.latitute.toString(),
+        longitude: event.longitude.toString(),
       );
-      final result = await datasource.checkin(requestModel);
+      final result = await datasource.checkinWithFace(
+          data: requestModel,
+          imagePath: event.imagePath,
+          idSchedule: event.idSchedule);
       result.fold(
         (l) => emit(_Error(l)),
         (r) => emit(_Loaded(r)),

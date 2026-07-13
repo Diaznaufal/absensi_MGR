@@ -1,4 +1,4 @@
-enum statusPengaduan { menunggu, dalamProses, selesai }
+enum statusPengaduan { menunggu, dalamProses, selesai, tidakselesai }
 
 class PengaduanModel {
   final String kodePengaduan;

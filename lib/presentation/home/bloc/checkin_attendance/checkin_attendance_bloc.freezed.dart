@@ -138,7 +138,9 @@ extension CheckinAttendanceEventPatterns on CheckinAttendanceEvent {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String latitute, String longitude)? checkin,
+    TResult Function(double latitute, double longitude, String imagePath,
+            String idSchedule)?
+        checkin,
     required TResult orElse(),
   }) {
     final _that = this;
@@ -146,7 +148,8 @@ extension CheckinAttendanceEventPatterns on CheckinAttendanceEvent {
       case _Started() when started != null:
         return started();
       case _Checkin() when checkin != null:
-        return checkin(_that.latitute, _that.longitude);
+        return checkin(
+            _that.latitute, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         return orElse();
     }
@@ -168,14 +171,17 @@ extension CheckinAttendanceEventPatterns on CheckinAttendanceEvent {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String latitute, String longitude) checkin,
+    required TResult Function(double latitute, double longitude,
+            String imagePath, String idSchedule)
+        checkin,
   }) {
     final _that = this;
     switch (_that) {
       case _Started():
         return started();
       case _Checkin():
-        return checkin(_that.latitute, _that.longitude);
+        return checkin(
+            _that.latitute, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -196,14 +202,17 @@ extension CheckinAttendanceEventPatterns on CheckinAttendanceEvent {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String latitute, String longitude)? checkin,
+    TResult? Function(double latitute, double longitude, String imagePath,
+            String idSchedule)?
+        checkin,
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started();
       case _Checkin() when checkin != null:
-        return checkin(_that.latitute, _that.longitude);
+        return checkin(
+            _that.latitute, _that.longitude, _that.imagePath, _that.idSchedule);
       case _:
         return null;
     }
@@ -233,10 +242,16 @@ class _Started implements CheckinAttendanceEvent {
 /// @nodoc
 
 class _Checkin implements CheckinAttendanceEvent {
-  const _Checkin(this.latitute, this.longitude);
+  const _Checkin(
+      {required this.latitute,
+      required this.longitude,
+      required this.imagePath,
+      required this.idSchedule});
 
-  final String latitute;
-  final String longitude;
+  final double latitute;
+  final double longitude;
+  final String imagePath;
+  final String idSchedule;
 
   /// Create a copy of CheckinAttendanceEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -253,15 +268,20 @@ class _Checkin implements CheckinAttendanceEvent {
             (identical(other.latitute, latitute) ||
                 other.latitute == latitute) &&
             (identical(other.longitude, longitude) ||
-                other.longitude == longitude));
+                other.longitude == longitude) &&
+            (identical(other.imagePath, imagePath) ||
+                other.imagePath == imagePath) &&
+            (identical(other.idSchedule, idSchedule) ||
+                other.idSchedule == idSchedule));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, latitute, longitude);
+  int get hashCode =>
+      Object.hash(runtimeType, latitute, longitude, imagePath, idSchedule);
 
   @override
   String toString() {
-    return 'CheckinAttendanceEvent.checkin(latitute: $latitute, longitude: $longitude)';
+    return 'CheckinAttendanceEvent.checkin(latitute: $latitute, longitude: $longitude, imagePath: $imagePath, idSchedule: $idSchedule)';
   }
 }
 
@@ -271,7 +291,8 @@ abstract mixin class _$CheckinCopyWith<$Res>
   factory _$CheckinCopyWith(_Checkin value, $Res Function(_Checkin) _then) =
       __$CheckinCopyWithImpl;
   @useResult
-  $Res call({String latitute, String longitude});
+  $Res call(
+      {double latitute, double longitude, String imagePath, String idSchedule});
 }
 
 /// @nodoc
@@ -287,15 +308,25 @@ class __$CheckinCopyWithImpl<$Res> implements _$CheckinCopyWith<$Res> {
   $Res call({
     Object? latitute = null,
     Object? longitude = null,
+    Object? imagePath = null,
+    Object? idSchedule = null,
   }) {
     return _then(_Checkin(
-      null == latitute
+      latitute: null == latitute
           ? _self.latitute
           : latitute // ignore: cast_nullable_to_non_nullable
-              as String,
-      null == longitude
+              as double,
+      longitude: null == longitude
           ? _self.longitude
           : longitude // ignore: cast_nullable_to_non_nullable
+              as double,
+      imagePath: null == imagePath
+          ? _self.imagePath
+          : imagePath // ignore: cast_nullable_to_non_nullable
+              as String,
+      idSchedule: null == idSchedule
+          ? _self.idSchedule
+          : idSchedule // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }

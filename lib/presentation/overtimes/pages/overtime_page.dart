@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import '../../../core/core.dart';
-import '../provider/overtime_provider.dart';
-import '../model/overtime_model.dart';
+import '../blocs/create_overtime/create_overtime_bloc.dart';
+import '../blocs/get_overtimes/get_overtimes_bloc.dart';
+import '../../../data/models/response/overtime_response_model.dart';
 
 class OvertimePage extends StatefulWidget {
   const OvertimePage({super.key});
@@ -18,90 +19,31 @@ class _OvertimePageState extends State<OvertimePage> {
   @override
   void initState() {
     super.initState();
+    context.read<GetOvertimesBloc>().add(const GetOvertimesEvent.fetch());
   }
 
   Future<void> _refreshData() async {
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    if (mounted) setState(() {});
+    context.read<GetOvertimesBloc>().add(const GetOvertimesEvent.fetch());
   }
 
-  // Fungsi Dialog Konfirmasi Absen dengan Teks Bahasa yang Lebih Humanis (Tidak Kaku)
-  void _showActionConfirmationDialog({required bool isCheckIn, required VoidCallback onConfirm}) {
-    final now = DateTime.now();
-    final timeStr = DateFormat('HH:mm:ss').format(now);
+  String _calculateTimeSpend(String startStr, String endStr) {
+    if (startStr.isEmpty || endStr.isEmpty) return "0.00";
+    try {
+      final format = DateFormat("HH:mm");
+      final start = format.parse(startStr);
+      var end = format.parse(endStr);
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              isCheckIn ? Icons.login_rounded : Icons.logout_rounded,
-              color: isCheckIn ? AppColors.green : AppColors.red,
-              size: 24,
-            ),
-            const SpaceWidth(12),
-            Text(
-              isCheckIn ? 'Mulai Lembur Sekarang?' : 'Selesai Lembur Sekarang?',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isCheckIn 
-                  ? 'Apakah Anda yakin ingin mencatat waktu mulai lembur Anda saat ini?' 
-                  : 'Apakah Anda yakin ingin mengakhiri dan mencatat waktu selesai lembur Anda?',
-              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
-            ),
-            const SpaceHeight(16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Waktu Absen:', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.grey)),
-                  Text(timeStr, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black)),
-                ],
-              ),
-            )
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: GoogleFonts.poppins(color: Colors.grey, fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isCheckIn ? AppColors.green : AppColors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              onConfirm();
-            },
-            child: Text(
-              isCheckIn ? 'Ya, Mulai' : 'Ya, Selesai', 
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
+      if (end.isBefore(start)) {
+        end = end.add(const Duration(days: 1));
+      }
+
+      final difference = end.difference(start);
+      final hours = difference.inMinutes / 60.0;
+      return hours
+          .toStringAsFixed(2); 
+    } catch (e) {
+      return "0.00";
+    }
   }
 
   @override
@@ -109,27 +51,63 @@ class _OvertimePageState extends State<OvertimePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A49B7),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshData,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-                    children: [
-                      const SpaceHeight(14),
-                      _buildOvertimeActions(context),
-                      const SpaceHeight(32),
-                      _buildHistorySection(context),
-                      const SpaceHeight(24),
-                    ],
+        child: BlocListener<CreateOvertimeBloc, CreateOvertimeState>(
+          listener: (context, state) {
+            state.maybeWhen(
+              loading: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                );
+              },
+              success: (response) {
+                Navigator.pop(context); 
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content:
+                        Text(response.message ?? 'Lembur berhasil diajukan'),
+                    backgroundColor: AppColors.green,
+                  ),
+                );
+                _refreshData(); 
+              },
+              error: (message) {
+                Navigator.pop(context); 
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: AppColors.red,
+                  ),
+                );
+              },
+              orElse: () {},
+            );
+          },
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        const SpaceHeight(14),
+                        _buildOvertimeActions(context),
+                        const SpaceHeight(32),
+                        _buildHistorySection(context),
+                        const SpaceHeight(24),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -142,7 +120,8 @@ class _OvertimePageState extends State<OvertimePage> {
         children: [
           InkWell(
             onTap: () => Navigator.pop(context),
-            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+            child: const Icon(Icons.arrow_back_ios_new,
+                color: Colors.white, size: 22),
           ),
           const SpaceWidth(20),
           Column(
@@ -150,11 +129,15 @@ class _OvertimePageState extends State<OvertimePage> {
             children: [
               Text(
                 'Lembur',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white),
               ),
               Text(
                 'Kelola riwayat lembur Anda',
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: Colors.white.withOpacity(0.8)),
               ),
             ],
           )
@@ -164,203 +147,108 @@ class _OvertimePageState extends State<OvertimePage> {
   }
 
   Widget _buildOvertimeActions(BuildContext context) {
-    final provider = context.watch<OvertimeProvider>();
-    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))]),
-      child: _buildActionButtons(context, provider.currentStatus),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context, String status) {
-    final provider = context.watch<OvertimeProvider>();
-    final history = provider.historyList;
-    final bool canRequestManual = status == 'not_started';
-
-    final now = DateTime.now();
-    final formattedToday = DateFormat('yyyy-MM-dd').format(now);
-
-    // MENCARI APAKAH ADA PENGAJUAN JADWAL MANUAL UNTUK HARI INI
-    final OvertimeModel? todaySchedule = history.cast<OvertimeModel?>().firstWhere(
-      (element) => element != null && element.date == formattedToday && element.status == 'pending',
-      orElse: () => null,
-    );
-
-    bool hasPlannedOvertime = todaySchedule != null;
-    bool isCheckInActive = false;
-    String statusAlertMessage = 'Silakan pilih metode: Ajukan Rencana atau Langsung Check In Urgent';
-
-    if (status == 'not_started') {
-      if (!hasPlannedOvertime) {
-        // JIKA BELUM ADA PENGAJUAN: Dua-duanya nyala (Check In berfungsi sebagai Pendaftaran Urgent)
-        isCheckInActive = true;
-        statusAlertMessage = 'Ready to start. Bisa Ajukan Rencana atau Langsung Check In Urgent.';
-      } else {
-        // JIKA SUDAH ADA PENGAJUAN MANUAl: Check In mati, baru aktif 1 jam (60 menit) sebelum jadwal dimulai
-        final timeStr = todaySchedule.startTime!;
-        final scheduledDateTime = DateTime.parse('$formattedToday $timeStr:00');
-        final differenceInMinutes = scheduledDateTime.difference(now).inMinutes;
-
-        if (differenceInMinutes <= 60) {
-          isCheckInActive = true;
-          statusAlertMessage = 'Jadwal terdeteksi. Silakan klik Check In untuk validasi kehadiran Anda.';
-        } else {
-          isCheckInActive = false;
-          statusAlertMessage = 'Tombol Check In terkunci. Aktif kembali otomatis 1 jam sebelum jam $timeStr';
-        }
-      }
-    } else if (status == 'in_progress') {
-      statusAlertMessage = 'Lembur sedang berjalan...';
-    } else {
-      statusAlertMessage = 'Sesi lembur selesai, menunggu persetujuan admin';
-    }
-
-    final bool canCheckIn = status == 'not_started' && isCheckInActive;
-    final bool canCheckOut = status == 'in_progress';
-    final bool isCompleted = status == 'completed';
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFF0A49B7), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 24),
-            ),
-            const SpaceWidth(16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Status Lembur', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.black)),
-                  Text(statusAlertMessage, style: GoogleFonts.poppins(fontSize: 12, color: !isCheckInActive && hasPlannedOvertime && status == 'not_started' ? Colors.red : AppColors.grey)),
-                ],
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10))
+          ]),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: const Color(0xFF0A49B7),
+                    borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.access_time_filled_rounded,
+                    color: Colors.white, size: 24),
               ),
-            ),
-          ],
-        ),
-        const SpaceHeight(20),
-        const Divider(height: 1),
-        const SpaceHeight(20),
-
-        // 1. TOMBOL AJUKAN LEMBUR MANUAL
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0A49B7).withOpacity(0.08),
-            foregroundColor: const Color(0xFF0A49B7),
-            elevation: 0,
-            minimumSize: const Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Color(0xFF0A49B7), width: 1.2)),
+              const SpaceWidth(16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Status Lembur',
+                        style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.black)),
+                    Text(
+                        'Silakan ajukan rencana lembur Anda melalui tombol di bawah.',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: AppColors.grey)),
+                  ],
+                ),
+              ),
+            ],
           ),
-          icon: const Icon(Icons.edit_calendar_rounded, size: 20),
-          label: Text('Ajukan Lembur', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
-          onPressed: () => _showManualOvertimeBottomSheet(context),
-        ),
-        
-        const SpaceHeight(14),
-
-        // 2. TOMBOL ABSENSI REAL-TIME
-        Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: canCheckIn ? AppColors.green : AppColors.grey.withOpacity(0.3),
-                  foregroundColor: canCheckIn ? Colors.white : AppColors.grey,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: canCheckIn
-                    ? () {
-                        if (hasPlannedOvertime) {
-                          // JALUR 1: Validasi Hadir biasa (Karena sudah ada rencana pengajuan)
-                          _showActionConfirmationDialog(
-                            isCheckIn: true,
-                            onConfirm: () => context.read<OvertimeProvider>().startOvertime(),
-                          );
-                        } else {
-                          // JALUR 2: Langsung Check In Urgent (Buka Form Pengisian Alasan Dulu)
-                          _showUrgentCheckInBottomSheet(context);
-                        }
-                      }
-                    : null,
-                icon: const Icon(Icons.login_rounded, size: 20),
-                label: Text('Check In', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
-              ),
+          const SpaceHeight(20),
+          const Divider(height: 1),
+          const SpaceHeight(20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0A49B7).withOpacity(0.08),
+              foregroundColor: const Color(0xFF0A49B7),
+              elevation: 0,
+              minimumSize: const Size(double.infinity, 48),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFF0A49B7), width: 1.2)),
             ),
-            const SpaceWidth(12),
-            Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: canCheckOut ? AppColors.red : AppColors.grey.withOpacity(0.3),
-                  foregroundColor: canCheckOut ? Colors.white : AppColors.grey,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: canCheckOut
-                    ? () {
-                        _showActionConfirmationDialog(
-                          isCheckIn: false,
-                          onConfirm: () => context.read<OvertimeProvider>().endOvertime(),
-                        );
-                      }
-                    : null,
-                icon: const Icon(Icons.logout_rounded, size: 20),
-                label: Text('Check Out', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
-        if (isCompleted) ...[
-          const SpaceHeight(12),
-          TextButton(
-            onPressed: () => context.read<OvertimeProvider>().resetSimulasi(),
-            child: Text('Reset Sesi Simulasi', style: GoogleFonts.poppins(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            icon: const Icon(Icons.edit_calendar_rounded, size: 20),
+            label: Text('Ajukan Lembur',
+                style: GoogleFonts.poppins(
+                    fontSize: 14, fontWeight: FontWeight.w600)),
+            onPressed: () => _showManualOvertimeBottomSheet(context),
           ),
         ],
-      ],
+      ),
     );
   }
 
-  // MODAL 1: FORM PENDAFTARAN JADWAL MANUAL / RENCANA AWAL
   void _showManualOvertimeBottomSheet(BuildContext context) {
-    final dateController = TextEditingController();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final dateController = TextEditingController(text: todayStr);
     final startController = TextEditingController();
     final endController = TextEditingController();
     final reasonController = TextEditingController();
-    final notesController = TextEditingController();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (bCtx) => Padding(
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(bCtx).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24),
         child: StatefulBuilder(
           builder: (context, setModalState) => SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Form Lembur Manual (Susulan/Rencana)', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Form Lembur',
+                    style: GoogleFonts.poppins(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
                 const SpaceHeight(16),
                 TextField(
                   controller: dateController,
                   readOnly: true,
-                  decoration: const InputDecoration(labelText: 'Tanggal Lembur *', suffixIcon: Icon(Icons.calendar_today_rounded), border: OutlineInputBorder()),
-                  onTap: () async {
-                    final now = DateTime.now();
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: now,
-                      firstDate: now.subtract(const Duration(days: 30)),
-                      lastDate: now.add(const Duration(days: 365 * 5)),
-                    );
-                    if (pickedDate != null) setModalState(() => dateController.text = DateFormat('yyyy-MM-dd').format(pickedDate));
-                  },
+                  decoration: const InputDecoration(
+                      labelText: 'Tanggal Lembur',
+                      suffixIcon: Icon(Icons.calendar_today_rounded),
+                      border: OutlineInputBorder()),
                 ),
                 const SpaceHeight(16),
                 Row(
@@ -369,10 +257,17 @@ class _OvertimePageState extends State<OvertimePage> {
                       child: TextField(
                         controller: startController,
                         readOnly: true,
-                        decoration: const InputDecoration(labelText: 'Jam Mulai *', suffixIcon: Icon(Icons.access_time_rounded), border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Jam Mulai *',
+                            suffixIcon: Icon(Icons.access_time_rounded),
+                            border: OutlineInputBorder()),
                         onTap: () async {
-                          final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                          if (time != null) setModalState(() => startController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
+                          final time = await showTimePicker(
+                              context: context, initialTime: TimeOfDay.now());
+                          if (time != null) {
+                            setModalState(() => startController.text =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
+                          }
                         },
                       ),
                     ),
@@ -381,37 +276,61 @@ class _OvertimePageState extends State<OvertimePage> {
                       child: TextField(
                         controller: endController,
                         readOnly: true,
-                        decoration: const InputDecoration(labelText: 'Jam Selesai *', suffixIcon: Icon(Icons.access_time_rounded), border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                            labelText: 'Jam Selesai *',
+                            suffixIcon: Icon(Icons.access_time_rounded),
+                            border: OutlineInputBorder()),
                         onTap: () async {
-                          final time = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                          if (time != null) setModalState(() => endController.text = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
+                          final time = await showTimePicker(
+                              context: context, initialTime: TimeOfDay.now());
+                          if (time != null) {
+                            setModalState(() => endController.text =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}');
+                          }
                         },
                       ),
                     ),
                   ],
                 ),
                 const SpaceHeight(16),
-                TextField(controller: reasonController, decoration: const InputDecoration(labelText: 'Alasan Lembur *', border: OutlineInputBorder())),
-                const SpaceHeight(16),
-                TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Catatan (Opsional)', border: OutlineInputBorder())),
+                TextField(
+                    controller: reasonController,
+                    decoration: const InputDecoration(
+                        labelText: 'Deskripsi / Alasan Lembur *',
+                        border: OutlineInputBorder())),
                 const SpaceHeight(24),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A49B7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0A49B7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12))),
                     onPressed: () {
-                      if (dateController.text.isNotEmpty && startController.text.isNotEmpty && endController.text.isNotEmpty && reasonController.text.isNotEmpty) {
-                        context.read<OvertimeProvider>().addManualOvertime(
-                          date: dateController.text,
-                          startTime: startController.text,
-                          endTime: endController.text,
-                          reason: reasonController.text,
-                          notes: notesController.text.isEmpty ? null : notesController.text,
-                        );
-                        Navigator.pop(context);
+                      if (startController.text.isNotEmpty &&
+                          endController.text.isNotEmpty &&
+                          reasonController.text.isNotEmpty) {
+                        final calculatedSpend = _calculateTimeSpend(
+                            startController.text, endController.text);
+
+                        // Eksekusi BLoC Event submit dengan kalkulasi otomatis time Spend
+                        context
+                            .read<CreateOvertimeBloc>()
+                            .add(CreateOvertimeEvent.submit(
+                              date: dateController.text,
+                              startTime: startController.text,
+                              endTime: endController.text,
+                              timeSpend: calculatedSpend,
+                              description: reasonController.text,
+                            ));
+                        Navigator.pop(context); // Menutup BottomSheet Form
                       }
                     },
-                    child: Text('Ajukan Lembur', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+                    child: Text('Ajukan Lembur',
+                        style:
+                            GoogleFonts.poppins(fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SpaceHeight(24),
@@ -423,117 +342,95 @@ class _OvertimePageState extends State<OvertimePage> {
     );
   }
 
-  // MODAL 2: FORM KHUSUS UNTUK LANGSUNG CHECK IN LEMBUR URGENT/MENDADK
-  void _showUrgentCheckInBottomSheet(BuildContext context) {
-    final reasonController = TextEditingController();
-    final notesController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Form Pendaftaran Lembur Urgent', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
-              const SpaceHeight(8),
-              Text('Anda langsung memulai check-in secara real-time saat ini. Sampaikan detail alasan darurat Anda di bawah.', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.grey)),
-              const SpaceHeight(20),
-              TextField(
-                controller: reasonController, 
-                decoration: const InputDecoration(labelText: 'Alasan Urgent Lembuaran *', hintText: 'Contoh: Penanganan server crash / instruksi urgent klien', border: OutlineInputBorder())
-              ),
-              const SpaceHeight(16),
-              TextField(
-                controller: notesController, 
-                decoration: const InputDecoration(labelText: 'Catatan Tambahan (Opsional)', border: OutlineInputBorder())
-              ),
-              const SpaceHeight(24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  onPressed: () {
-                    if (reasonController.text.trim().isNotEmpty) {
-                      context.read<OvertimeProvider>().startUrgentOvertime(
-                        reason: reasonController.text.trim(),
-                        notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
-                      );
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Center(child: Text('Check In Lembur Urgent Berhasil Dimulai!')), backgroundColor: AppColors.green),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Center(child: Text('Alasan urgent wajib diisi!')), backgroundColor: AppColors.red),
-                      );
-                    }
-                  },
-                  child: Text('Mulai & Check In Sekarang', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SpaceHeight(24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildHistorySection(BuildContext context) {
-    final history = context.watch<OvertimeProvider>().historyList;
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('History', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.white)),
+          Text('Riwayat',
+              style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.white)),
           const SpaceHeight(16),
-          if (history.isEmpty) _buildNoDataHistory() else _buildHistoryList(history),
+          BlocBuilder<GetOvertimesBloc, GetOvertimesState>(
+            builder: (context, state) {
+              return state.maybeWhen(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
+                error: (message) => Center(
+                    child: Text(message,
+                        style: const TextStyle(color: Colors.white))),
+                success: (response) {
+                  final history = response.data ?? [];
+                  if (history.isEmpty) {
+                    return _buildNoDataHistory();
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: history.length,
+                    separatorBuilder: (_, __) => const SpaceHeight(16),
+                    itemBuilder: (context, index) =>
+                        _buildOvertimeCard(history[index]),
+                  );
+                },
+                orElse: () => _buildNoDataHistory(),
+              );
+            },
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHistoryList(List<OvertimeModel> overtimes) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: overtimes.length,
-      separatorBuilder: (context, index) => const SpaceHeight(16),
-      itemBuilder: (context, index) => _buildOvertimeCard(overtimes[index]),
     );
   }
 
   Widget _buildNoDataHistory() {
     return Container(
       padding: const EdgeInsets.all(50),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 10))]),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 10))
+          ]),
       child: Column(
         children: [
           const Icon(Icons.inbox_rounded, color: Colors.orange, size: 50),
           const SpaceHeight(16),
-          Text('No Overtime Records', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.black)),
+          Text('No Overtime Records',
+              style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.black)),
           const SpaceHeight(8),
-          Text('You haven\'t submitted any overtime yet', style: GoogleFonts.poppins(fontSize: 13, color: AppColors.grey), textAlign: TextAlign.center),
+          Text('You haven\'t submitted any overtime yet',
+              style: GoogleFonts.poppins(fontSize: 13, color: AppColors.grey),
+              textAlign: TextAlign.center),
         ],
       ),
     );
   }
 
-  Widget _buildOvertimeCard(OvertimeModel overtime) {
-    final dateFormatter = DateFormat('EEE, dd MMM yyyy');
-    final statusColor = _getOvertimeStatusColor(overtime.status);
-    final statusLabel = _getOvertimeStatusLabel(overtime.status);
+  // Menerima Objek Overtime murni dari Model API final
+  Widget _buildOvertimeCard(Overtime overtime) {
+    final statusColor = _getOvertimeStatusColor(overtime.statusLabel);
+    final statusLabel = overtime.statusLabel ?? 'Pending';
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 20, offset: const Offset(0, 10))]),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 10))
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -542,20 +439,38 @@ class _OvertimePageState extends State<OvertimePage> {
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(gradient: LinearGradient(colors: [statusColor, statusColor.withOpacity(0.7)]), borderRadius: BorderRadius.circular(12)),
-                child: Icon(_getOvertimeStatusIcon(overtime.status), color: Colors.white, size: 24),
+                decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        colors: [statusColor, statusColor.withOpacity(0.7)]),
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(_getOvertimeStatusIcon(overtime.statusLabel),
+                    color: Colors.white, size: 24),
               ),
               const SpaceWidth(16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(overtime.date != null ? dateFormatter.format(DateTime.parse(overtime.date!)) : '-', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.black)),
+                    // Menampilkan string properti 'tanggal' dari API
+                    Text(overtime.tanggal ?? '-',
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.black)),
                     const SpaceHeight(4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: statusColor.withOpacity(0.3))),
-                      child: Text(statusLabel, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border:
+                              Border.all(color: statusColor.withOpacity(0.3))),
+                      child: Text(statusLabel,
+                          style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor)),
                     ),
                   ],
                 ),
@@ -567,18 +482,26 @@ class _OvertimePageState extends State<OvertimePage> {
           const SpaceHeight(16),
           Row(
             children: [
-              Expanded(child: _buildTimeInfo('Start Time', overtime.startTime ?? '-', Icons.login_rounded, AppColors.green)),
+              // Menampilkan string jam 'start' dan 'end' dari API
+              Expanded(
+                  child: _buildTimeInfo('Start Time', overtime.start ?? '-',
+                      Icons.login_rounded, AppColors.green)),
               const SpaceWidth(16),
-              Expanded(child: _buildTimeInfo('End Time', overtime.endTime ?? '-', Icons.logout_rounded, AppColors.red)),
+              Expanded(
+                  child: _buildTimeInfo('End Time', overtime.end ?? '-',
+                      Icons.logout_rounded, AppColors.red)),
             ],
           ),
-          if (overtime.reason != null && overtime.reason!.isNotEmpty) ...[
-            const SpaceHeight(16),
-            _buildInfoRow('Reason', overtime.reason!, Icons.notes_rounded),
-          ],
-          if (overtime.notes != null && overtime.notes!.isNotEmpty) ...[
+          const SpaceHeight(12),
+          // Menampilkan string durasi 'time_spend' desimal dari API
+          _buildInfoRow('Total Durasi', '${overtime.timeSpend ?? '0'} Jam',
+              Icons.timelapse_rounded),
+          // Menampilkan 'description' (alasan lembur) dari API
+          if (overtime.description != null &&
+              overtime.description!.isNotEmpty) ...[
             const SpaceHeight(12),
-            _buildInfoRow('Notes', overtime.notes!, Icons.description_rounded),
+            _buildInfoRow(
+                'Deskripsi', overtime.description!, Icons.notes_rounded),
           ],
         ],
       ),
@@ -588,7 +511,9 @@ class _OvertimePageState extends State<OvertimePage> {
   Widget _buildTimeInfo(String label, String time, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Icon(icon, color: color, size: 20),
@@ -597,8 +522,14 @@ class _OvertimePageState extends State<OvertimePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: GoogleFonts.poppins(fontSize: 11, color: color.withOpacity(0.7))),
-                Text(time, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
+                Text(label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: color.withOpacity(0.7))),
+                Text(time,
+                    style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
               ],
             ),
           ),
@@ -610,7 +541,9 @@ class _OvertimePageState extends State<OvertimePage> {
   Widget _buildInfoRow(String label, String value, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppColors.light.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: AppColors.light.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -620,9 +553,13 @@ class _OvertimePageState extends State<OvertimePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: GoogleFonts.poppins(fontSize: 11, color: AppColors.grey)),
+                Text(label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppColors.grey)),
                 const SpaceHeight(4),
-                Text(value, style: GoogleFonts.poppins(fontSize: 13, color: AppColors.black)),
+                Text(value,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, color: AppColors.black)),
               ],
             ),
           ),
@@ -631,57 +568,29 @@ class _OvertimePageState extends State<OvertimePage> {
     );
   }
 
-  String _getStatusMessage(String status) {
-    switch (status) {
-      case 'not_started': return 'Ready to start overtime';
-      case 'in_progress': return 'Overtime in progress';
-      case 'completed': return 'Waiting for approval';
-      default: return 'Unknown status';
+  Color _getOvertimeStatusColor(String? statusLabel) {
+    switch (statusLabel?.toLowerCase()) {
+      case 'disetujui':
+      case 'approved':
+        return AppColors.green;
+      case 'ditolak':
+      case 'rejected':
+        return AppColors.red;
+      default:
+        return Colors.orange; // Default status pending / Menunggu Persetujuan
     }
   }
 
-  String _getStatusLabel(String status) {
-    switch (status) {
-      case 'not_started': return 'Not Started';
-      case 'in_progress': return 'In Progress';
-      case 'completed': return 'Completed';
-      default: return status;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'not_started': return AppColors.grey;
-      case 'in_progress': return Colors.blue;
-      case 'completed': return Colors.orange;
-      default: return AppColors.primary;
-    }
-  }
-
-  Color _getOvertimeStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'approved': return AppColors.green;
-      case 'rejected': return AppColors.red;
-      case 'pending': return Colors.orange;
-      default: return AppColors.primary;
-    }
-  }
-
-  String _getOvertimeStatusLabel(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'approved': return 'Approved';
-      case 'rejected': return 'Rejected';
-      case 'pending': return 'Pending';
-      default: return status ?? 'Unknown';
-    }
-  }
-
-  IconData _getOvertimeStatusIcon(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'approved': return Icons.check_circle_rounded;
-      case 'rejected': return Icons.cancel_rounded;
-      case 'pending': return Icons.pending_actions_rounded;
-      default: return Icons.help_outline_rounded;
+  IconData _getOvertimeStatusIcon(String? statusLabel) {
+    switch (statusLabel?.toLowerCase()) {
+      case 'disetujui':
+      case 'approved':
+        return Icons.check_circle_rounded;
+      case 'ditolak':
+      case 'rejected':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.pending_actions_rounded;
     }
   }
 }

@@ -21,19 +21,19 @@ class CameraViewAttendancePage extends StatefulWidget {
     required this.onImage,
     this.onCameraFeedReady,
     this.onCameraLensDirectionChanged,
-    this.initialCameraLensDirection = CameraLensDirection.back,
+    this.initialCameraLensDirection = CameraLensDirection.front,
     required this.onTakePicture,
+    this.isModelReady = true,
   });
 
   final String title;
   final CustomPaint? customPaint;
   final Function(InputImage inputImage) onImage;
   final VoidCallback? onCameraFeedReady;
-  //stop live feed
-
   final Function(CameraLensDirection direction)? onCameraLensDirectionChanged;
   final CameraLensDirection initialCameraLensDirection;
   final Function(CameraImage cameraImage) onTakePicture;
+  final bool isModelReady;
 
   @override
   State<CameraViewAttendancePage> createState() => _CameraViewState();
@@ -52,25 +52,17 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
   late List<RecognitionEmbedding> recognitions = [];
   CameraImage? frame;
-  CameraLensDirection camDirec = CameraLensDirection.front;
   late Recognizer recognizer;
   late FaceDetector detector;
-  bool isFaceRegistered = false;
-  String faceStatusMessage = 'Belum Terdaftar';
 
-  // Head turn detection variables
-  bool _isHeadTurnedRight = false;
-  bool _canTakePicture = false;
-  String _instructionMessage = 'Position your face in the center';
-  bool _showingInstruction = true;
-  bool _isProcessing = true; // Flag to control face detection processing
+  bool _isProcessing = true;
+  bool _photoTakenSuccess = false; // Penanda kunci sukses diambil
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  // Blink detection variables
   bool _didCloseEyes = false;
   bool _isWaitingForBlink = false;
-  String _blinkInstruction = 'Kedipkan mata Anda';
+  String _blinkInstruction = 'Posisikan wajah Anda';
 
   @override
   void initState() {
@@ -87,7 +79,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
       ),
     );
 
-    // Initialize pulse animation for instruction overlay
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -101,7 +92,11 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     ));
     _pulseController.repeat(reverse: true);
 
-    _initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initialize();
+      }
+    });
   }
 
   void _initialize() async {
@@ -121,7 +116,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
   @override
   void dispose() {
-    _isProcessing = false; // Stop all processing
+    _isProcessing = false;
     WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     detector.close();
@@ -136,10 +131,10 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     }
 
     if (state == AppLifecycleState.inactive) {
-      _isProcessing = false; // Stop processing when app goes to background
+      _isProcessing = false;
       _stopLiveFeed();
     } else if (state == AppLifecycleState.resumed) {
-      _isProcessing = true; // Resume processing when app comes back
+      _isProcessing = true;
       _startLiveFeed();
     }
   }
@@ -193,297 +188,41 @@ class _CameraViewState extends State<CameraViewAttendancePage>
   }
 
   Widget _liveFeedBody() {
-    if (_cameras.isEmpty) return _buildLoadingScreen('No cameras available');
-    if (_controller == null)
-      return _buildLoadingScreen('Initializing camera...');
-    if (_controller?.value.isInitialized == false)
-      return _buildLoadingScreen('Starting camera...');
+    if (_cameras.isEmpty ||
+        _controller == null ||
+        _controller?.value.isInitialized == false ||
+        _changingCameraLens) {
+      return const SizedBox.shrink();
+    }
 
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        // Camera Preview
         Center(
-          child: _changingCameraLens
-              ? _buildLoadingScreen('Switching camera...')
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(0),
-                  child: CameraPreview(_controller!, child: widget.customPaint),
-                ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(0),
+            child: CameraPreview(_controller!, child: widget.customPaint),
+          ),
         ),
-
-        // Dark overlay with face detection guide
         _buildFaceDetectionOverlay(),
-
-        // Instructions overlay
-        // _buildInstructionsOverlay(),
-
-        // Bottom controls
         _buildBottomControls(),
       ],
     );
   }
 
-  Widget _buildLoadingScreen(String message) {
-    return Container(
-      decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
-      child: Center(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: -250,
-              top: -500,
-              child: Container(
-                width: 380,
-                height: 380,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
-                ),
-              ),
-            ),
-
-            // Lingkaran kedua
-            Positioned(
-              left: -200,
-              top: -450,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.05),
-                    width: 30,
-                  ),
-                ),
-              ),
-            ),
-
-            Positioned(
-              right: -250,
-              bottom: -600,
-              child: Container(
-                width: 450,
-                height: 450,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
-                ),
-              ),
-            ),
-
-            // Lingkaran kedua
-            Positioned(
-              right: -220,
-              bottom: -570,
-              child: Container(
-                width: 380,
-                height: 380,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.05),
-                    width: 30,
-                  ),
-                ),
-              ),
-            ),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              strokeWidth: 3,
-            ),
-            const SpaceHeight(20),
-            Text(
-              message,
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildFaceDetectionOverlay() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.transparent,
       ),
       child: CustomPaint(
         painter: FaceOverlayPainter(
           screenSize: MediaQuery.of(context).size,
-          isHeadTurnedRight: _isHeadTurnedRight,
-          canTakePicture: _canTakePicture,
+          isHeadTurnedRight: false,
+          canTakePicture: _photoTakenSuccess || _isWaitingForBlink,
         ),
         child: Container(),
       ),
-    );
-  }
-
-  Widget _buildInstructionsOverlay() {
-    return Positioned(
-      top: 40,
-      left: 24,
-      right: 24,
-      child: AnimatedBuilder(
-        animation: _pulseAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _showingInstruction ? _pulseAnimation.value : 1.0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF1e3c72).withOpacity(0.9),
-                    const Color(0xFF2a5298).withOpacity(0.9),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _canTakePicture
-                              ? Icons.check_circle
-                              : Icons.face_rounded,
-                          color: _canTakePicture ? Colors.green : Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SpaceWidth(12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _canTakePicture ? 'Perfect!' : 'Face Detection',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              _instructionMessage,
-                              style: GoogleFonts.poppins(
-                                color: Colors.white.withOpacity(0.8),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (!_canTakePicture) ...[
-                    const SpaceHeight(16),
-                    Row(
-                      children: [
-                        _buildStepIndicator(
-                          step: 1,
-                          title: 'Center Face',
-                          isCompleted: true,
-                          isActive: !_isHeadTurnedRight,
-                        ),
-                        const SpaceWidth(8),
-                        Expanded(
-                          child: Container(
-                            height: 2,
-                            decoration: BoxDecoration(
-                              color: _isHeadTurnedRight
-                                  ? Colors.white
-                                  : Colors.white.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(1),
-                            ),
-                          ),
-                        ),
-                        const SpaceWidth(8),
-                        _buildStepIndicator(
-                          step: 2,
-                          title: 'Turn Right',
-                          isCompleted: _isHeadTurnedRight && _canTakePicture,
-                          isActive: _isHeadTurnedRight,
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStepIndicator({
-    required int step,
-    required String title,
-    required bool isCompleted,
-    required bool isActive,
-  }) {
-    return Column(
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(
-            color: isCompleted
-                ? Colors.green
-                : isActive
-                    ? Colors.white
-                    : Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Center(
-            child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 16)
-                : Text(
-                    step.toString(),
-                    style: GoogleFonts.poppins(
-                      color: isActive ? const Color(0xFF1e3c72) : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
-        ),
-        const SpaceHeight(4),
-        Text(
-          title,
-          style: GoogleFonts.poppins(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
@@ -506,7 +245,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
         ),
         child: Column(
           children: [
-            // Zoom control
             SizedBox(
               width: 250,
               child: Row(
@@ -548,8 +286,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
               ),
             ),
             const SpaceHeight(20),
-
-            // Take picture button
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -563,20 +299,21 @@ class _CameraViewState extends State<CameraViewAttendancePage>
   }
 
   Widget _buildTakePictureButton() {
+    final List<Color> buttonGradient =
+        (_photoTakenSuccess || _isWaitingForBlink)
+            ? [
+                const Color(0xFF4CAF50).withAlpha((0.9 * 255).round()),
+                const Color(0xFF45A049).withAlpha((0.9 * 255).round()),
+              ]
+            : [
+                const Color(0xFFE53935).withAlpha((0.9 * 255).round()),
+                const Color(0xFFD32F2F).withAlpha((0.9 * 255).round()),
+              ];
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _isWaitingForBlink
-              ? [
-                  const Color(0xFF4CAF50).withAlpha((0.9 * 255).round()),
-                  const Color(0xFF45A049).withAlpha((0.9 * 255).round()),
-                ]
-              : [
-                  const Color(0xFF1e3c72).withAlpha((0.9 * 255).round()),
-                  const Color(0xFF2a5298).withAlpha((0.9 * 255).round()),
-                ],
-        ),
+        gradient: LinearGradient(colors: buttonGradient),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Colors.white.withAlpha((0.3 * 255).round()),
@@ -592,12 +329,13 @@ class _CameraViewState extends State<CameraViewAttendancePage>
       ),
       child: Column(
         children: [
-          // Eye icon with animation
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) {
               return Transform.scale(
-                scale: _isWaitingForBlink ? _pulseAnimation.value : 1.0,
+                scale: (_photoTakenSuccess || _isWaitingForBlink)
+                    ? _pulseAnimation.value
+                    : 1.0,
                 child: Container(
                   width: 60,
                   height: 30,
@@ -606,9 +344,18 @@ class _CameraViewState extends State<CameraViewAttendancePage>
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    _didCloseEyes
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
+                    // 🆕 PERBAIKAN UTAMA: Penerapan 3 Kondisi pada Ikon secara sinkron dan adaptif
+                    _photoTakenSuccess
+                        ? Icons
+                            .check_circle_rounded // Tahap 3: Sukses jepret -> Centang
+                        : _isWaitingForBlink
+                            ? (_didCloseEyes
+                                ? Icons
+                                    .visibility_off_rounded // Tahap 2a: Sedang kedip -> Mata off
+                                : Icons
+                                    .visibility_rounded) // Tahap 2b: Siap kedip -> Mata on
+                            : Icons
+                                .no_photography_rounded, // Tahap 1: Belum Pas -> Tanda silang kamera/posisi
                     color: Colors.white,
                     size: 32,
                   ),
@@ -617,7 +364,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
             },
           ),
           const SpaceHeight(12),
-          // Instruction text
           Text(
             _blinkInstruction,
             textAlign: TextAlign.center,
@@ -630,7 +376,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
             ),
           ),
           const SpaceHeight(4),
-          // Status indicator
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -638,17 +383,19 @@ class _CameraViewState extends State<CameraViewAttendancePage>
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: _isWaitingForBlink
+                  color: (_photoTakenSuccess || _isWaitingForBlink)
                       ? (_didCloseEyes ? Colors.orange : Colors.green)
-                      : Colors.grey,
+                      : Colors.red,
                   shape: BoxShape.circle,
                 ),
               ),
               const SpaceWidth(8),
               Text(
-                _isWaitingForBlink
-                    ? (_didCloseEyes ? 'Mendeteksi...' : 'Siap')
-                    : 'Posisikan wajah',
+                _photoTakenSuccess
+                    ? 'Sukses'
+                    : _isWaitingForBlink
+                        ? (_didCloseEyes ? 'Mendeteksi...' : 'Posisi Siap')
+                        : 'Belum Pas',
                 style: GoogleFonts.poppins(
                   color: Colors.white.withAlpha((0.8 * 255).round()),
                   fontSize: 12,
@@ -663,12 +410,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
   }
 
   Future _startLiveFeed() async {
-    if (_isInitializing) {
-      developer.log('Camera already initializing, skipping...',
-          name: 'CameraView');
-      return;
-    }
-
+    if (_isInitializing) return;
     _isInitializing = true;
 
     try {
@@ -684,7 +426,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
       await _controller?.initialize();
 
-      if (!mounted) {
+      if (!mounted || _controller == null) {
         _isInitializing = false;
         return;
       }
@@ -693,23 +435,14 @@ class _CameraViewState extends State<CameraViewAttendancePage>
       _minAvailableZoom = _currentZoomLevel;
       _maxAvailableZoom = await _controller!.getMaxZoomLevel();
 
-      await _controller?.startImageStream(_processCameraImage);
-
-      if (widget.onCameraFeedReady != null) {
-        widget.onCameraFeedReady!();
-      }
-      if (widget.onCameraLensDirectionChanged != null) {
-        widget.onCameraLensDirectionChanged!(camera.lensDirection);
+      if (_controller != null && _controller!.value.isInitialized) {
+        await _controller?.startImageStream(_processCameraImage);
+        if (widget.onCameraFeedReady != null) widget.onCameraFeedReady!();
       }
 
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     } catch (e) {
       developer.log('Error starting camera: $e', name: 'CameraView');
-      if (mounted) {
-        setState(() {});
-      }
     } finally {
       _isInitializing = false;
     }
@@ -726,16 +459,11 @@ class _CameraViewState extends State<CameraViewAttendancePage>
       }
     } catch (e) {
       developer.log('Error stopping camera: $e', name: 'CameraView');
-      _controller = null;
     }
   }
 
   void _processCameraImage(CameraImage image) async {
-    if (!_isProcessing) {
-      developer.log('⏸️  Processing stopped - _isProcessing=false',
-          name: 'CameraView');
-      return; // Stop processing if flag is false
-    }
+    if (!_isProcessing) return;
 
     frame = image;
     final inputImage = _inputImageFromCameraImage(image);
@@ -743,100 +471,110 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
     widget.onImage(inputImage);
 
-    // Process face detection for head turn
     try {
       final faces = await detector.processImage(inputImage);
       if (_isProcessing) {
-        // Check again before processing faces
-        _processFaceDetection(faces);
-      } else {
-        developer.log('⏸️  Skipping face processing - _isProcessing=false',
-            name: 'CameraView');
+        _processFaceDetection(faces, inputImage);
       }
     } catch (e) {
-      // Handle face detection errors
       developer.log('❌ Error in face detection: $e', name: 'CameraView');
     }
   }
 
-  void _processFaceDetection(List<Face> faces) {
-    developer.log('🔍 Processing faces: ${faces.length} detected',
-        name: 'FaceDetection');
+  void _processFaceDetection(List<Face> faces, InputImage inputImage) {
+    if (!_isProcessing) return;
 
-    // Blink detection logic
     if (faces.isEmpty) {
       setState(() {
-        _instructionMessage =
-            'No face detected. Position your face in the center';
-        _isHeadTurnedRight = false;
-        _canTakePicture = false;
-        _showingInstruction = true;
         _isWaitingForBlink = false;
         _didCloseEyes = false;
-        _blinkInstruction = 'Posisikan wajah Anda';
+        _blinkInstruction = 'Posisikan wajah Anda di dalam oval';
       });
       return;
     }
 
     final face = faces.first;
+    final rect = face.boundingBox;
+    final double nativeWidth = inputImage.metadata!.size.width;
+    final double nativeHeight = inputImage.metadata!.size.height;
+    final rotation = inputImage.metadata!.rotation;
 
-    // Blink detection thresholds
+    final bool isPortrait = rotation == InputImageRotation.rotation90deg ||
+        rotation == InputImageRotation.rotation270deg;
+
+    final double imageWidth = isPortrait ? nativeHeight : nativeWidth;
+    final double imageHeight = isPortrait ? nativeWidth : nativeHeight;
+
+    double faceCenterX = rect.left + (rect.width / 2);
+    double faceCenterY = rect.top + (rect.height / 2);
+
+    if (isPortrait) {
+      if (rotation == InputImageRotation.rotation90deg) {
+        faceCenterX = rect.top + (rect.width / 2);
+        faceCenterY = nativeWidth - (rect.left + (rect.width / 2));
+      } else if (rotation == InputImageRotation.rotation270deg) {
+        faceCenterX = nativeHeight - (rect.top + (rect.height / 2));
+        faceCenterY = rect.left + (rect.width / 2);
+      }
+    }
+
+    final double idealCenterX = imageWidth / 2;
+    final double idealCenterY = imageHeight / 2;
+
+    final double horizontalTolerance = imageWidth * 0.40;
+    final double verticalTolerance = imageHeight * 0.40;
+
+    if ((faceCenterX - idealCenterX).abs() > horizontalTolerance ||
+        (faceCenterY - idealCenterY).abs() > verticalTolerance) {
+      setState(() {
+        _isWaitingForBlink = false;
+        _blinkInstruction = 'Wajah harus tepat di tengah';
+      });
+      return;
+    }
+
+    final double faceHeightPercentage = rect.height / imageHeight;
+    if (faceHeightPercentage < 0.25) {
+      setState(() {
+        _isWaitingForBlink = false;
+        _blinkInstruction = 'Silakan mendekat ke kamera';
+      });
+      return;
+    } else if (faceHeightPercentage > 0.80) {
+      setState(() {
+        _isWaitingForBlink = false;
+        _blinkInstruction = 'Terlalu dekat, silakan menjauh';
+      });
+      return;
+    }
+
+    if (!_isWaitingForBlink) {
+      setState(() {
+        _isWaitingForBlink = true;
+        _blinkInstruction = 'Posisi Bagus! Kedipkan mata Anda';
+      });
+    }
+
     const double blinkThreshold = 0.25;
     final leftEyeOpen = face.leftEyeOpenProbability ?? 1.0;
     final rightEyeOpen = face.rightEyeOpenProbability ?? 1.0;
 
-    // Face detected - wait for blink
-    if (!_isWaitingForBlink) {
-      developer.log('✅ Face detected! Waiting for blink.',
-          name: 'BlinkDetection');
-      setState(() {
-        _isWaitingForBlink = true;
-        _instructionMessage = 'Face detected! Kedipkan mata untuk foto';
-        _blinkInstruction = 'Kedipkan mata Anda';
-        _showingInstruction = false;
-      });
-    }
-
-    // Log eye probabilities
-    developer.log(
-        '👁️ Eye values - Left: ${leftEyeOpen.toStringAsFixed(2)}, Right: ${rightEyeOpen.toStringAsFixed(2)}, Closed: $_didCloseEyes',
-        name: 'BlinkDetection');
-
-    // Detect blink when both eyes close
     if (leftEyeOpen < blinkThreshold && rightEyeOpen < blinkThreshold) {
       if (!_didCloseEyes) {
-        developer.log(
-            '👁️ EYES CLOSED! Left: $leftEyeOpen, Right: $rightEyeOpen',
-            name: 'BlinkDetection');
         setState(() {
           _didCloseEyes = true;
-          _blinkInstruction = 'Mata tertutup... buka mata';
+          _blinkInstruction = 'Mata tertutup... Buka mata Anda';
         });
       }
-    } else if (_didCloseEyes && leftEyeOpen > 0.75 && rightEyeOpen > 0.75) {
-      // Eyes opened after closing - take picture!
-      developer.log(
-          '👁️✅ BLINK COMPLETE! Eyes reopened - Left: $leftEyeOpen, Right: $rightEyeOpen. Taking picture!',
-          name: 'BlinkDetection');
+    } else if (_didCloseEyes && leftEyeOpen > 0.70 && rightEyeOpen > 0.70) {
       if (frame != null) {
+        _isProcessing = false;
         setState(() {
-          _isProcessing = false;
+          _photoTakenSuccess = true;
           _blinkInstruction = 'Foto berhasil diambil!';
         });
         widget.onTakePicture(frame!);
-      } else {
-        developer.log('❌ Frame is null, cannot take picture',
-            name: 'BlinkDetection');
       }
-      setState(() {
-        _didCloseEyes = false;
-        _isWaitingForBlink = false;
-      });
-    } else if (_didCloseEyes) {
-      // Eyes closed but not fully opened yet
-      developer.log(
-          '⏳ Waiting for eyes to fully open - Left: $leftEyeOpen, Right: $rightEyeOpen (need > 0.75)',
-          name: 'BlinkDetection');
     }
   }
 
@@ -847,54 +585,9 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     DeviceOrientation.landscapeRight: 270,
   };
 
-  // InputImage? _inputImageFromCameraImage(CameraImage image) {
-  //   if (_controller == null) return null;
-
-  //   final camera = _cameras[_cameraIndex];
-  //   final sensorOrientation = camera.sensorOrientation;
-
-  //   InputImageRotation? rotation;
-  //   if (Platform.isIOS) {
-  //     rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
-  //   } else if (Platform.isAndroid) {
-  //     var rotationCompensation =
-  //         _orientations[_controller!.value.deviceOrientation];
-  //     if (rotationCompensation == null) return null;
-  //     if (camera.lensDirection == CameraLensDirection.front) {
-  //       rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
-  //     } else {
-  //       rotationCompensation =
-  //           (sensorOrientation - rotationCompensation + 360) % 360;
-  //     }
-  //     rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
-  //   }
-  //   if (rotation == null) return null;
-
-  //   final format = InputImageFormatValue.fromRawValue(image.format.raw);
-
-  //   if (format == null ||
-  //       (Platform.isAndroid && format != InputImageFormat.nv21) ||
-  //       (Platform.isIOS && format != InputImageFormat.bgra8888))
-  //     return null;
-
-  //   if (image.planes.length != 1) return null;
-  //   final plane = image.planes.first;
-
-  //   return InputImage.fromBytes(
-  //     bytes: plane.bytes,
-  //     metadata: InputImageMetadata(
-  //       size: Size(image.width.toDouble(), image.height.toDouble()),
-  //       rotation: rotation,
-  //       format: format,
-  //       bytesPerRow: plane.bytesPerRow,
-  //     ),
-  //   );
-  // }
-
   InputImage? _inputImageFromCameraImage(CameraImage image) {
     if (_controller == null) return null;
 
-    // 1) Hitung rotasi seperti biasa
     final camera = _cameras[_cameraIndex];
     final sensorOrientation = camera.sensorOrientation;
     var rotationCompensation =
@@ -905,24 +598,18 @@ class _CameraViewState extends State<CameraViewAttendancePage>
       rotationCompensation =
           (sensorOrientation - rotationCompensation + 360) % 360;
     }
-    final rotation = InputImageRotationValue.fromRawValue(
-      rotationCompensation,
-    )!;
+    final rotation =
+        InputImageRotationValue.fromRawValue(rotationCompensation)!;
 
-    // 2) Konversi tiga plane ke NV21
     final bytes = _yuv420ToNv21(image);
 
-    // 3) Buat metadata pakai NV21
     final metadata = InputImageMetadata(
       size: Size(image.width.toDouble(), image.height.toDouble()),
       rotation: rotation,
-      // *** Paksa jadi NV21 ***
       format: InputImageFormat.nv21,
-      // bytesPerRow untuk NV21 = width
       bytesPerRow: image.width,
     );
 
-    // 4) Kembalikan InputImage
     return InputImage.fromBytes(bytes: bytes, metadata: metadata);
   }
 
@@ -934,7 +621,6 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     final uPlane = image.planes[1].bytes;
     final vPlane = image.planes[2].bytes;
 
-    // NV21 = YYYYY... + interleaved VU
     final nv21 = Uint8List(width * height + (width * height ~/ 2));
     nv21.setRange(0, width * height, yPlane);
 
@@ -951,58 +637,8 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     }
     return nv21;
   }
-  // void _detect({
-  //   required Face face,
-  // }) async {
-  //   const double blinkThreshold = 0.25;
-
-  //   if ((face.leftEyeOpenProbability ?? 1.0) < (blinkThreshold) &&
-  //       (face.rightEyeOpenProbability ?? 1.0) < (blinkThreshold)) {
-  //     if (mounted) {
-  //       setState(
-  //         () => _didCloseEyes = true,
-  //       );
-  //     }
-  //   }
-  // }
-
-  // Future<void> _processImage(List<Face> faces) async {
-  //   try {
-  //     final Face firstFace = faces.first;
-
-  //     if (_didCloseEyes) {
-  //       if ((faces.first.leftEyeOpenProbability ?? 1.0) < 0.75 &&
-  //           (faces.first.rightEyeOpenProbability ?? 1.0) < 0.75) {
-  //         widget.onTakePicture(frame!);
-  //         setState(() {
-  //           _didCloseEyes = false;
-  //         });
-  //       }
-  //     }
-
-  //     _detect(
-  //       face: firstFace,
-  //     );
-  //   } catch (e) {}
-  // }
-
-  double calculateSymmetry(
-    Point<int>? leftPosition,
-    Point<int>? rightPosition,
-  ) {
-    if (leftPosition != null && rightPosition != null) {
-      final double dx = (rightPosition.x - leftPosition.x).abs().toDouble();
-      final double dy = (rightPosition.y - leftPosition.y).abs().toDouble();
-      final distance = Offset(dx, dy).distance;
-
-      return distance;
-    }
-
-    return 0.0;
-  }
 }
 
-// Custom painter for face detection overlay
 class FaceOverlayPainter extends CustomPainter {
   final Size screenSize;
   final bool isHeadTurnedRight;
@@ -1017,137 +653,63 @@ class FaceOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint();
-
-    // Create face detection oval
     final center = Offset(size.width / 2, size.height / 2 - 50);
-    final ovalRect = Rect.fromCenter(
-      center: center,
-      width: 280,
-      height: 350,
-    );
+    final ovalRect = Rect.fromCenter(center: center, width: 280, height: 350);
 
-    // Draw the overlay with cut-out for face
     final overlayPath = Path()
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-
     final facePath = Path()..addOval(ovalRect);
+    final finalPath =
+        Path.combine(PathOperation.difference, overlayPath, facePath);
 
-    final finalPath = Path.combine(
-      PathOperation.difference,
-      overlayPath,
-      facePath,
-    );
-
-    // Fill the overlay
-    paint.color = Colors.transparent;
+    paint.color = Colors.black.withOpacity(0.7);
     canvas.drawPath(finalPath, paint);
 
-    // Draw face outline
     paint.style = PaintingStyle.stroke;
     paint.strokeWidth = 3;
-    paint.color = canTakePicture
-        ? Colors.green
-        : isHeadTurnedRight
-            ? Colors.orange
-            : Colors.white;
 
-    // Add glow effect
+    paint.color = canTakePicture
+        ? const Color(0xFF4CAF50)
+        : Colors.white.withOpacity(0.6);
+
     paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
     canvas.drawOval(ovalRect, paint);
 
-    // Draw solid outline
     paint.maskFilter = null;
     paint.strokeWidth = 2;
     canvas.drawOval(ovalRect, paint);
 
-    // Draw corner guides
     _drawCornerGuides(canvas, ovalRect, paint);
-
-    // Draw directional arrow if head needs to turn
-    // if (!canTakePicture && !isHeadTurnedRight) {
-    //   _drawDirectionalArrow(canvas, center, paint);
-    // }
   }
 
   void _drawCornerGuides(Canvas canvas, Rect rect, Paint paint) {
     paint.style = PaintingStyle.stroke;
     paint.strokeWidth = 3;
-    paint.color = canTakePicture ? Colors.green : Colors.white;
 
+    paint.color = canTakePicture
+        ? const Color(0xFF4CAF50)
+        : Colors.white.withOpacity(0.8);
     const cornerLength = 20.0;
 
-    // Top-left corner
-    canvas.drawLine(
-      Offset(rect.left, rect.top + cornerLength),
-      Offset(rect.left, rect.top),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rect.left, rect.top),
-      Offset(rect.left + cornerLength, rect.top),
-      paint,
-    );
+    canvas.drawLine(Offset(rect.left, rect.top + cornerLength),
+        Offset(rect.left, rect.top), paint);
+    canvas.drawLine(Offset(rect.left, rect.top),
+        Offset(rect.left + cornerLength, rect.top), paint);
 
-    // Top-right corner
-    canvas.drawLine(
-      Offset(rect.right - cornerLength, rect.top),
-      Offset(rect.right, rect.top),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rect.right, rect.top),
-      Offset(rect.right, rect.top + cornerLength),
-      paint,
-    );
+    canvas.drawLine(Offset(rect.right - cornerLength, rect.top),
+        Offset(rect.right, rect.top), paint);
+    canvas.drawLine(Offset(rect.right, rect.top),
+        Offset(rect.right, rect.top + cornerLength), paint);
 
-    // Bottom-left corner
-    canvas.drawLine(
-      Offset(rect.left, rect.bottom - cornerLength),
-      Offset(rect.left, rect.bottom),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rect.left, rect.bottom),
-      Offset(rect.left + cornerLength, rect.bottom),
-      paint,
-    );
+    canvas.drawLine(Offset(rect.left, rect.bottom - cornerLength),
+        Offset(rect.left, rect.bottom), paint);
+    canvas.drawLine(Offset(rect.left, rect.bottom),
+        Offset(rect.left + cornerLength, rect.bottom), paint);
 
-    // Bottom-right corner
-    canvas.drawLine(
-      Offset(rect.right - cornerLength, rect.bottom),
-      Offset(rect.right, rect.bottom),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(rect.right, rect.bottom),
-      Offset(rect.right, rect.bottom - cornerLength),
-      paint,
-    );
-  }
-
-  void _drawDirectionalArrow(Canvas canvas, Offset center, Paint paint) {
-    paint.style = PaintingStyle.fill;
-    paint.color = Colors.orange;
-
-    final arrowCenter = Offset(center.dx + 120, center.dy);
-    final arrowPath = Path();
-
-    // Arrow pointing right
-    arrowPath.moveTo(arrowCenter.dx - 15, arrowCenter.dy - 10);
-    arrowPath.lineTo(arrowCenter.dx + 15, arrowCenter.dy);
-    arrowPath.lineTo(arrowCenter.dx - 15, arrowCenter.dy + 10);
-    arrowPath.close();
-
-    canvas.drawPath(arrowPath, paint);
-
-    // Draw arrow tail
-    final tailRect = Rect.fromCenter(
-      center: Offset(arrowCenter.dx - 25, arrowCenter.dy),
-      width: 20,
-      height: 4,
-    );
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(tailRect, const Radius.circular(2)), paint);
+    canvas.drawLine(Offset(rect.right - cornerLength, rect.bottom),
+        Offset(rect.right, rect.bottom), paint);
+    canvas.drawLine(Offset(rect.right, rect.bottom),
+        Offset(rect.right, rect.bottom - cornerLength), paint);
   }
 
   @override

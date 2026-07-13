@@ -12,19 +12,27 @@ part 'checkout_attendance_state.dart';
 class CheckoutAttendanceBloc
     extends Bloc<CheckoutAttendanceEvent, CheckoutAttendanceState> {
   final AttendanceRemoteDatasource datasource;
+
   CheckoutAttendanceBloc(
     this.datasource,
   ) : super(const _Initial()) {
     on<_Checkout>((event, emit) async {
       emit(const _Loading());
+
       final requestModel = CheckInOutRequestModel(
-        latitude: event.latitute,
-        longitude: event.longitude,
+        latitude: event.latitude.toString(),
+        longitude: event.longitude.toString(),
       );
-      final result = await datasource.checkout(requestModel);
+
+      final result = await datasource.checkoutWithFace(
+        data: requestModel,
+        imagePath: event.imagePath,
+        idSchedule: event.idSchedule,
+      );
+
       result.fold(
-        (l) => emit(_Error(l)),
-        (r) => emit(_Loaded(r)),
+        (error) => emit(_Error(error)),
+        (response) => emit(_Loaded(response)),
       );
     });
   }

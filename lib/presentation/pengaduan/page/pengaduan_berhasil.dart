@@ -7,12 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 class PengaduanBerhasil extends StatelessWidget {
-  final PengaduanModel pengaduan;
+  final PengaduanModel pengaduanData; // <-- DIUBAH MENJADI PengaduanModel
 
   const PengaduanBerhasil({
     super.key,
-    required this.pengaduan,
+    required this.pengaduanData, // <-- DIUBAH MENJADI PengaduanModel
   });
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -29,84 +30,98 @@ class PengaduanBerhasil extends StatelessWidget {
         );
       },
       child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: Color(0xFF0A49B7),
-            elevation: 0,
-            toolbarHeight: 0,
-          ),
-          backgroundColor: const Color(0xD7FFFFFF),
-          body: SafeArea(
-              child: Stack(children: [
-            Column(
-              children: [_buildHeader()],
-            ),
-            Positioned(
-                top: screenHeight * 0.40,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF0A49B7),
+          elevation: 0,
+          toolbarHeight: 0,
+        ),
+        backgroundColor: const Color(0xD7FFFFFF),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Column(
+                children: [_buildHeader()],
+              ),
+              Positioned(
+                  top: screenHeight * 0.40,
+                  left: 16,
+                  right: 16,
+                  child: _kodePengaduan(context, pengaduanData)),
+              Positioned(
+                  top: screenHeight * 0.55,
+                  left: 16,
+                  right: 16,
+                  child: _peringatanCard()), // <-- Menggunakan pengaduanData
+              Positioned(
+                top: screenHeight * 0.65,
                 left: 16,
                 right: 16,
-                child: _kodePengaduan(context, pengaduan)),
-            Positioned(
-              top: screenHeight * 0.60,
-              left: 16,
-              right: 16,
-              child: InkWell(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
+                child: InkWell(
+                  onTap: () {
+                    // SEKARANG BERSIH TANPA MAPPING MANUAL YANG ERROR (Mengatasi image_83ba57.png)
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
                         builder: (_) => DetailPengaduan(
-                              pengaduan: pengaduan,
-                            )),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                      color: Color(0xff0a49b7),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Center(
+                          pengaduan:
+                              pengaduanData, // <-- Langsung dilempar tanpa error tipe data
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                        color: const Color(0xff0a49b7),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
                         child: Text(
-                      "Lihat Detail Pengaduan",
-                      style: GoogleFonts.poppins(
-                          color: Colors.white, fontWeight: FontWeight.w500),
-                    )),
+                          "Lihat Detail Pengaduan",
+                          style: GoogleFonts.poppins(
+                              color: Colors.white, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              top: screenHeight * 0.67,
-              left: 16,
-              right: 16,
-              child: InkWell(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => PengaduanPage()),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: Colors.blueGrey),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Center(
+              Positioned(
+                top: screenHeight * 0.72,
+                left: 16,
+                right: 16,
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => PengaduanPage()),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.blueGrey),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
                         child: Text(
-                      "Kembali Ke Riwayat",
-                      style: GoogleFonts.poppins(
-                          color: Color(0xff0a49b7),
-                          fontWeight: FontWeight.w500),
-                    )),
+                          "Kembali Ke Riwayat",
+                          style: GoogleFonts.poppins(
+                              color: const Color(0xff0a49b7),
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            )
-          ]))),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -135,7 +150,7 @@ class PengaduanBerhasil extends StatelessWidget {
               fontSize: 18,
             ),
           ),
-          SizedBox(
+          const SizedBox(
             height: 10,
           ),
           Text(
@@ -154,7 +169,7 @@ class PengaduanBerhasil extends StatelessWidget {
 
 Widget _kodePengaduan(BuildContext context, PengaduanModel pengaduan) {
   return Container(
-    padding: EdgeInsets.all(14),
+    padding: const EdgeInsets.all(14),
     width: double.infinity,
     decoration: BoxDecoration(
         color: Colors.white,
@@ -167,8 +182,8 @@ Widget _kodePengaduan(BuildContext context, PengaduanModel pengaduan) {
         ]),
     child: Column(
       children: [
-        Text("Kode Pengaduan"),
-        SizedBox(
+        const Text("Kode Pengaduan"),
+        const SizedBox(
           height: 10,
         ),
         Row(
@@ -205,7 +220,7 @@ Widget _kodePengaduan(BuildContext context, PengaduanModel pengaduan) {
             ),
           ],
         ),
-        SizedBox(
+        const SizedBox(
           height: 10,
         ),
         Text(
@@ -213,8 +228,39 @@ Widget _kodePengaduan(BuildContext context, PengaduanModel pengaduan) {
             'dd MMMM yyyy • HH:mm',
             'id_ID',
           ).format(
-            pengaduan.tanggalPengaduan,
+            pengaduan.tanggalPengaduan ?? DateTime.now(),
           ),
+        )
+      ],
+    ),
+  );
+}
+
+Widget _peringatanCard() {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    width: double.infinity,
+    decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withAlpha(50),
+              spreadRadius: 1,
+              blurRadius: 10)
+        ]),
+    child: Row(
+      children: [
+        Icon(
+          Icons.info_outline,
+          size: 24,
+        ),
+        SizedBox(
+          width: 10,
+        ),
+        Text(
+          'Silahkan simpan kode pengaduan untuk melihat \nprogres kedepannya.',
+          style: GoogleFonts.poppins(fontSize: 12),
         )
       ],
     ),

@@ -18,9 +18,11 @@ import 'attendance_result_page.dart';
 
 class ScannerPage extends StatefulWidget {
   final bool isCheckin;
+  final String idSchedule;
   const ScannerPage({
     super.key,
     required this.isCheckin,
+    required this.idSchedule
   });
 
   @override
@@ -231,6 +233,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
                         isMatch: false,
                         isCheckin: widget.isCheckin,
                         attendanceType: 'QR',
+                        idSchedule: widget.idSchedule,
                       ));
                       context
                           .read<GetQrcodeCheckinBloc>()
@@ -242,6 +245,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
                         isMatch: true,
                         isCheckin: widget.isCheckin,
                         attendanceType: 'QR',
+                        idSchedule: widget.idSchedule,
                       ));
                     },
                   );

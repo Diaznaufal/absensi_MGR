@@ -52,15 +52,15 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_Started value)? started,
-    TResult Function(_GetOvertimes value)? getOvertimes,
+    TResult Function(_Fetch value)? fetch,
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started(_that);
-      case _GetOvertimes() when getOvertimes != null:
-        return getOvertimes(_that);
+      case _Fetch() when fetch != null:
+        return fetch(_that);
       case _:
         return orElse();
     }
@@ -82,14 +82,14 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(_Started value) started,
-    required TResult Function(_GetOvertimes value) getOvertimes,
+    required TResult Function(_Fetch value) fetch,
   }) {
     final _that = this;
     switch (_that) {
       case _Started():
         return started(_that);
-      case _GetOvertimes():
-        return getOvertimes(_that);
+      case _Fetch():
+        return fetch(_that);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -110,14 +110,14 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_Started value)? started,
-    TResult? Function(_GetOvertimes value)? getOvertimes,
+    TResult? Function(_Fetch value)? fetch,
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started(_that);
-      case _GetOvertimes() when getOvertimes != null:
-        return getOvertimes(_that);
+      case _Fetch() when fetch != null:
+        return fetch(_that);
       case _:
         return null;
     }
@@ -138,15 +138,15 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? started,
-    TResult Function(String? month)? getOvertimes,
+    TResult Function(String? month)? fetch,
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started();
-      case _GetOvertimes() when getOvertimes != null:
-        return getOvertimes(_that.month);
+      case _Fetch() when fetch != null:
+        return fetch(_that.month);
       case _:
         return orElse();
     }
@@ -168,14 +168,14 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({
     required TResult Function() started,
-    required TResult Function(String? month) getOvertimes,
+    required TResult Function(String? month) fetch,
   }) {
     final _that = this;
     switch (_that) {
       case _Started():
         return started();
-      case _GetOvertimes():
-        return getOvertimes(_that.month);
+      case _Fetch():
+        return fetch(_that.month);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -196,14 +196,14 @@ extension GetOvertimesEventPatterns on GetOvertimesEvent {
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? started,
-    TResult? Function(String? month)? getOvertimes,
+    TResult? Function(String? month)? fetch,
   }) {
     final _that = this;
     switch (_that) {
       case _Started() when started != null:
         return started();
-      case _GetOvertimes() when getOvertimes != null:
-        return getOvertimes(_that.month);
+      case _Fetch() when fetch != null:
+        return fetch(_that.month);
       case _:
         return null;
     }
@@ -232,8 +232,8 @@ class _Started implements GetOvertimesEvent {
 
 /// @nodoc
 
-class _GetOvertimes implements GetOvertimesEvent {
-  const _GetOvertimes({this.month});
+class _Fetch implements GetOvertimesEvent {
+  const _Fetch({this.month});
 
   final String? month;
 
@@ -241,14 +241,14 @@ class _GetOvertimes implements GetOvertimesEvent {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  _$GetOvertimesCopyWith<_GetOvertimes> get copyWith =>
-      __$GetOvertimesCopyWithImpl<_GetOvertimes>(this, _$identity);
+  _$FetchCopyWith<_Fetch> get copyWith =>
+      __$FetchCopyWithImpl<_Fetch>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _GetOvertimes &&
+            other is _Fetch &&
             (identical(other.month, month) || other.month == month));
   }
 
@@ -257,27 +257,25 @@ class _GetOvertimes implements GetOvertimesEvent {
 
   @override
   String toString() {
-    return 'GetOvertimesEvent.getOvertimes(month: $month)';
+    return 'GetOvertimesEvent.fetch(month: $month)';
   }
 }
 
 /// @nodoc
-abstract mixin class _$GetOvertimesCopyWith<$Res>
+abstract mixin class _$FetchCopyWith<$Res>
     implements $GetOvertimesEventCopyWith<$Res> {
-  factory _$GetOvertimesCopyWith(
-          _GetOvertimes value, $Res Function(_GetOvertimes) _then) =
-      __$GetOvertimesCopyWithImpl;
+  factory _$FetchCopyWith(_Fetch value, $Res Function(_Fetch) _then) =
+      __$FetchCopyWithImpl;
   @useResult
   $Res call({String? month});
 }
 
 /// @nodoc
-class __$GetOvertimesCopyWithImpl<$Res>
-    implements _$GetOvertimesCopyWith<$Res> {
-  __$GetOvertimesCopyWithImpl(this._self, this._then);
+class __$FetchCopyWithImpl<$Res> implements _$FetchCopyWith<$Res> {
+  __$FetchCopyWithImpl(this._self, this._then);
 
-  final _GetOvertimes _self;
-  final $Res Function(_GetOvertimes) _then;
+  final _Fetch _self;
+  final $Res Function(_Fetch) _then;
 
   /// Create a copy of GetOvertimesEvent
   /// with the given fields replaced by the non-null parameter values.
@@ -285,7 +283,7 @@ class __$GetOvertimesCopyWithImpl<$Res>
   $Res call({
     Object? month = freezed,
   }) {
-    return _then(_GetOvertimes(
+    return _then(_Fetch(
       month: freezed == month
           ? _self.month
           : month // ignore: cast_nullable_to_non_nullable
@@ -335,8 +333,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult maybeMap<TResult extends Object?>({
     TResult Function(_Initial value)? initial,
     TResult Function(_Loading value)? loading,
-    TResult Function(_Loaded value)? loaded,
-    TResult Function(_Empty value)? empty,
+    TResult Function(_Success value)? success,
     TResult Function(_Error value)? error,
     required TResult orElse(),
   }) {
@@ -346,10 +343,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial(_that);
       case _Loading() when loading != null:
         return loading(_that);
-      case _Loaded() when loaded != null:
-        return loaded(_that);
-      case _Empty() when empty != null:
-        return empty(_that);
+      case _Success() when success != null:
+        return success(_that);
       case _Error() when error != null:
         return error(_that);
       case _:
@@ -374,8 +369,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult map<TResult extends Object?>({
     required TResult Function(_Initial value) initial,
     required TResult Function(_Loading value) loading,
-    required TResult Function(_Loaded value) loaded,
-    required TResult Function(_Empty value) empty,
+    required TResult Function(_Success value) success,
     required TResult Function(_Error value) error,
   }) {
     final _that = this;
@@ -384,10 +378,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial(_that);
       case _Loading():
         return loading(_that);
-      case _Loaded():
-        return loaded(_that);
-      case _Empty():
-        return empty(_that);
+      case _Success():
+        return success(_that);
       case _Error():
         return error(_that);
       case _:
@@ -411,8 +403,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(_Initial value)? initial,
     TResult? Function(_Loading value)? loading,
-    TResult? Function(_Loaded value)? loaded,
-    TResult? Function(_Empty value)? empty,
+    TResult? Function(_Success value)? success,
     TResult? Function(_Error value)? error,
   }) {
     final _that = this;
@@ -421,10 +412,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial(_that);
       case _Loading() when loading != null:
         return loading(_that);
-      case _Loaded() when loaded != null:
-        return loaded(_that);
-      case _Empty() when empty != null:
-        return empty(_that);
+      case _Success() when success != null:
+        return success(_that);
       case _Error() when error != null:
         return error(_that);
       case _:
@@ -448,8 +437,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult maybeWhen<TResult extends Object?>({
     TResult Function()? initial,
     TResult Function()? loading,
-    TResult Function(List<Overtime> overtimes)? loaded,
-    TResult Function()? empty,
+    TResult Function(OvertimeResponseModel response)? success,
     TResult Function(String message)? error,
     required TResult orElse(),
   }) {
@@ -459,10 +447,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial();
       case _Loading() when loading != null:
         return loading();
-      case _Loaded() when loaded != null:
-        return loaded(_that.overtimes);
-      case _Empty() when empty != null:
-        return empty();
+      case _Success() when success != null:
+        return success(_that.response);
       case _Error() when error != null:
         return error(_that.message);
       case _:
@@ -487,8 +473,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult when<TResult extends Object?>({
     required TResult Function() initial,
     required TResult Function() loading,
-    required TResult Function(List<Overtime> overtimes) loaded,
-    required TResult Function() empty,
+    required TResult Function(OvertimeResponseModel response) success,
     required TResult Function(String message) error,
   }) {
     final _that = this;
@@ -497,10 +482,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial();
       case _Loading():
         return loading();
-      case _Loaded():
-        return loaded(_that.overtimes);
-      case _Empty():
-        return empty();
+      case _Success():
+        return success(_that.response);
       case _Error():
         return error(_that.message);
       case _:
@@ -524,8 +507,7 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function()? initial,
     TResult? Function()? loading,
-    TResult? Function(List<Overtime> overtimes)? loaded,
-    TResult? Function()? empty,
+    TResult? Function(OvertimeResponseModel response)? success,
     TResult? Function(String message)? error,
   }) {
     final _that = this;
@@ -534,10 +516,8 @@ extension GetOvertimesStatePatterns on GetOvertimesState {
         return initial();
       case _Loading() when loading != null:
         return loading();
-      case _Loaded() when loaded != null:
-        return loaded(_that.overtimes);
-      case _Empty() when empty != null:
-        return empty();
+      case _Success() when success != null:
+        return success(_that.response);
       case _Error() when error != null:
         return error(_that.message);
       case _:
@@ -588,90 +568,64 @@ class _Loading implements GetOvertimesState {
 
 /// @nodoc
 
-class _Loaded implements GetOvertimesState {
-  const _Loaded(final List<Overtime> overtimes) : _overtimes = overtimes;
+class _Success implements GetOvertimesState {
+  const _Success(this.response);
 
-  final List<Overtime> _overtimes;
-  List<Overtime> get overtimes {
-    if (_overtimes is EqualUnmodifiableListView) return _overtimes;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_overtimes);
-  }
+  final OvertimeResponseModel response;
 
   /// Create a copy of GetOvertimesState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  _$LoadedCopyWith<_Loaded> get copyWith =>
-      __$LoadedCopyWithImpl<_Loaded>(this, _$identity);
+  _$SuccessCopyWith<_Success> get copyWith =>
+      __$SuccessCopyWithImpl<_Success>(this, _$identity);
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _Loaded &&
-            const DeepCollectionEquality()
-                .equals(other._overtimes, _overtimes));
+            other is _Success &&
+            (identical(other.response, response) ||
+                other.response == response));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, const DeepCollectionEquality().hash(_overtimes));
+  int get hashCode => Object.hash(runtimeType, response);
 
   @override
   String toString() {
-    return 'GetOvertimesState.loaded(overtimes: $overtimes)';
+    return 'GetOvertimesState.success(response: $response)';
   }
 }
 
 /// @nodoc
-abstract mixin class _$LoadedCopyWith<$Res>
+abstract mixin class _$SuccessCopyWith<$Res>
     implements $GetOvertimesStateCopyWith<$Res> {
-  factory _$LoadedCopyWith(_Loaded value, $Res Function(_Loaded) _then) =
-      __$LoadedCopyWithImpl;
+  factory _$SuccessCopyWith(_Success value, $Res Function(_Success) _then) =
+      __$SuccessCopyWithImpl;
   @useResult
-  $Res call({List<Overtime> overtimes});
+  $Res call({OvertimeResponseModel response});
 }
 
 /// @nodoc
-class __$LoadedCopyWithImpl<$Res> implements _$LoadedCopyWith<$Res> {
-  __$LoadedCopyWithImpl(this._self, this._then);
+class __$SuccessCopyWithImpl<$Res> implements _$SuccessCopyWith<$Res> {
+  __$SuccessCopyWithImpl(this._self, this._then);
 
-  final _Loaded _self;
-  final $Res Function(_Loaded) _then;
+  final _Success _self;
+  final $Res Function(_Success) _then;
 
   /// Create a copy of GetOvertimesState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? overtimes = null,
+    Object? response = null,
   }) {
-    return _then(_Loaded(
-      null == overtimes
-          ? _self._overtimes
-          : overtimes // ignore: cast_nullable_to_non_nullable
-              as List<Overtime>,
+    return _then(_Success(
+      null == response
+          ? _self.response
+          : response // ignore: cast_nullable_to_non_nullable
+              as OvertimeResponseModel,
     ));
-  }
-}
-
-/// @nodoc
-
-class _Empty implements GetOvertimesState {
-  const _Empty();
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType && other is _Empty);
-  }
-
-  @override
-  int get hashCode => runtimeType.hashCode;
-
-  @override
-  String toString() {
-    return 'GetOvertimesState.empty()';
   }
 }
 

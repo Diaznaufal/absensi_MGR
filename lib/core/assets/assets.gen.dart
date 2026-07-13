@@ -17,6 +17,9 @@ import 'package:vector_graphics/vector_graphics.dart' as _vg;
 class $AssetsIconGen {
   const $AssetsIconGen();
 
+  /// File path: assets/icon/icon_MGR.png
+  AssetGenImage get iconMGR => const AssetGenImage('assets/icon/icon_MGR.png');
+
   /// File path: assets/icon/logo.png
   AssetGenImage get logo => const AssetGenImage('assets/icon/logo.png');
 
@@ -25,7 +28,7 @@ class $AssetsIconGen {
       const AssetGenImage('assets/icon/play_store_512.png');
 
   /// List of all assets
-  List<AssetGenImage> get values => [logo, playStore512];
+  List<AssetGenImage> get values => [iconMGR, logo, playStore512];
 }
 
 class $AssetsIconsGen {
@@ -38,17 +41,35 @@ class $AssetsIconsGen {
   /// File path: assets/icons/back.svg
   SvgGenImage get back => const SvgGenImage('assets/icons/back.svg');
 
+  /// File path: assets/icons/building.svg
+  SvgGenImage get building => const SvgGenImage('assets/icons/building.svg');
+
   /// File path: assets/icons/calendar.svg
   SvgGenImage get calendar => const SvgGenImage('assets/icons/calendar.svg');
 
+  /// File path: assets/icons/calendarStart.svg
+  SvgGenImage get calendarStart =>
+      const SvgGenImage('assets/icons/calendarStart.svg');
+
+  /// File path: assets/icons/cardPhone.svg
+  SvgGenImage get cardPhone => const SvgGenImage('assets/icons/cardPhone.svg');
+
   /// File path: assets/icons/email.svg
   SvgGenImage get email => const SvgGenImage('assets/icons/email.svg');
+
+  /// File path: assets/icons/emailOutline.svg
+  SvgGenImage get emailOutline =>
+      const SvgGenImage('assets/icons/emailOutline.svg');
 
   /// File path: assets/icons/image.svg
   SvgGenImage get image => const SvgGenImage('assets/icons/image.svg');
 
   /// File path: assets/icons/location.svg
   SvgGenImage get location => const SvgGenImage('assets/icons/location.svg');
+
+  /// File path: assets/icons/locationOutline.svg
+  SvgGenImage get locationOutline =>
+      const SvgGenImage('assets/icons/locationOutline.svg');
 
   /// Directory path: assets/icons/menu
   $AssetsIconsMenuGen get menu => const $AssetsIconsMenuGen();
@@ -63,35 +84,82 @@ class $AssetsIconsGen {
   /// File path: assets/icons/password.svg
   SvgGenImage get password => const SvgGenImage('assets/icons/password.svg');
 
+  /// File path: assets/icons/personCard.svg
+  SvgGenImage get personCard =>
+      const SvgGenImage('assets/icons/personCard.svg');
+
+  /// File path: assets/icons/phone_outline.svg
+  SvgGenImage get phoneOutline =>
+      const SvgGenImage('assets/icons/phone_outline.svg');
+
   /// File path: assets/icons/reverse.svg
   SvgGenImage get reverse => const SvgGenImage('assets/icons/reverse.svg');
+
+  /// File path: assets/icons/scanperson.svg
+  SvgGenImage get scanperson =>
+      const SvgGenImage('assets/icons/scanperson.svg');
+
+  /// File path: assets/icons/uploadCloud.svg
+  SvgGenImage get uploadCloud =>
+      const SvgGenImage('assets/icons/uploadCloud.svg');
+
+  /// File path: assets/icons/workoutline.svg
+  SvgGenImage get workoutline =>
+      const SvgGenImage('assets/icons/workoutline.svg');
 
   /// List of all assets
   List<SvgGenImage> get values => [
         attendance,
         back,
+        building,
         calendar,
+        calendarStart,
+        cardPhone,
         email,
+        emailOutline,
         image,
         location,
+        locationOutline,
         notificationRounded,
         password,
-        reverse
+        personCard,
+        phoneOutline,
+        reverse,
+        scanperson,
+        uploadCloud,
+        workoutline
       ];
 }
 
 class $AssetsImagesGen {
   const $AssetsImagesGen();
 
+  /// File path: assets/images/MGR_logo.png
+  AssetGenImage get mGRLogo =>
+      const AssetGenImage('assets/images/MGR_logo.png');
+
+  /// File path: assets/images/Wallet.png
+  AssetGenImage get wallet => const AssetGenImage('assets/images/Wallet.png');
+
   /// File path: assets/images/bg_home.png
   AssetGenImage get bgHome => const AssetGenImage('assets/images/bg_home.png');
+
+  /// File path: assets/images/container_bawah.png
+  AssetGenImage get containerBawah =>
+      const AssetGenImage('assets/images/container_bawah.png');
 
   /// File path: assets/images/failed.png
   AssetGenImage get failed => const AssetGenImage('assets/images/failed.png');
 
+  /// File path: assets/images/gedung.png
+  AssetGenImage get gedung => const AssetGenImage('assets/images/gedung.png');
+
   /// File path: assets/images/img_my_location.png
   AssetGenImage get imgMyLocation =>
       const AssetGenImage('assets/images/img_my_location.png');
+
+  /// File path: assets/images/logo.png
+  AssetGenImage get logo => const AssetGenImage('assets/images/logo.png');
 
   /// File path: assets/images/logo_code_with_bahri_bk.png
   AssetGenImage get logoCodeWithBahriBk =>
@@ -105,9 +173,23 @@ class $AssetsImagesGen {
   AssetGenImage get logoGeoSquare =>
       const AssetGenImage('assets/images/logo_geo_square.png');
 
+  /// File path: assets/images/logo_transparent.png
+  AssetGenImage get logoTransparent =>
+      const AssetGenImage('assets/images/logo_transparent.png');
+
   /// File path: assets/images/logo_white.png
   AssetGenImage get logoWhite =>
       const AssetGenImage('assets/images/logo_white.png');
+
+  /// File path: assets/images/mapsMGR.png
+  AssetGenImage get mapsMGR => const AssetGenImage('assets/images/mapsMGR.png');
+
+  /// File path: assets/images/orang.png
+  AssetGenImage get orang => const AssetGenImage('assets/images/orang.png');
+
+  /// File path: assets/images/pengaduanBerhasil.png
+  AssetGenImage get pengaduanBerhasil =>
+      const AssetGenImage('assets/images/pengaduanBerhasil.png');
 
   /// File path: assets/images/see_location.png
   AssetGenImage get seeLocation =>
@@ -118,13 +200,22 @@ class $AssetsImagesGen {
 
   /// List of all assets
   List<AssetGenImage> get values => [
+        mGRLogo,
+        wallet,
         bgHome,
+        containerBawah,
         failed,
+        gedung,
         imgMyLocation,
+        logo,
         logoCodeWithBahriBk,
         logoGeo,
         logoGeoSquare,
+        logoTransparent,
         logoWhite,
+        mapsMGR,
+        orang,
+        pengaduanBerhasil,
         seeLocation,
         success
       ];

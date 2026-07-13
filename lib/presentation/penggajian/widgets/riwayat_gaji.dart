@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../data/models/response/payroll_response_model.dart';
 import 'package:intl/intl.dart';
-import '../model/penggajian_model.dart';
-
-final rupiah = NumberFormat.currency(
-  locale: 'id_ID',
-  symbol: 'Rp ',
-  decimalDigits: 0,
-);
 
 class RiwayatGajiCard extends StatelessWidget {
-  final gajimodel data;
-  final VoidCallback onTap; // Deteksi klik
+  final PayrollHistoryItem data;
+  final VoidCallback onTap;
 
   const RiwayatGajiCard({
     super.key,
@@ -19,10 +13,20 @@ class RiwayatGajiCard extends StatelessWidget {
     required this.onTap,
   });
 
+  String formatBulan(String? rawDate) {
+    if (rawDate == null || rawDate.isEmpty) return '';
+    try {
+      DateTime parseDate = DateTime.parse(rawDate);
+      return DateFormat('MMMM yyyy', 'id_ID').format(parseDate);
+    } catch (e) {
+      return rawDate;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap, // Daftarkan fungsi tap di sini
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
@@ -49,14 +53,14 @@ class RiwayatGajiCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data.bulan,
+                    formatBulan(data.monthLabel),
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
-                    data.tglBayar,
+                    data.tanggalGajianLabel ?? "-",
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                     ),
@@ -68,7 +72,7 @@ class RiwayatGajiCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  rupiah.format(data.totalGaji - data.potongan),
+                  data.gajiBersihFormatted ?? "Rp 0",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
