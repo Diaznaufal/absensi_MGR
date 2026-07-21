@@ -1,121 +1,85 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_absensi_app/presentation/home/pages/main_page.dart';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:flutter_absensi_app/core/core.dart';
-
 import '../../bloc/check_qr/check_qr_bloc.dart';
 import '../../bloc/get_qrcode_checkin/get_qrcode_checkin_bloc.dart';
-import '../../bloc/get_qrcode_checkout/get_qrcode_checkout_bloc.dart';
 import 'attendance_result_page.dart';
 
 class ScannerPage extends StatefulWidget {
   final bool isCheckin;
   final String idSchedule;
+
   const ScannerPage({
     super.key,
     required this.isCheckin,
-    required this.idSchedule
+    required this.idSchedule,
   });
 
   @override
   State<ScannerPage> createState() => _ScannerPageState();
 }
 
-class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
-  MobileScannerController cameraController = MobileScannerController(
-    autoStart: true,
-    torchEnabled: false,
-    useNewCameraSelector: true,
-  );
+class _ScannerPageState extends State<ScannerPage> {
+  late final MobileScannerController cameraController;
 
   Barcode? _barcode;
   bool isScan = false;
-  StreamSubscription<Object?>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    cameraController = MobileScannerController(
+      autoStart: true,
+      torchEnabled: false,
+    );
+  }
+
+  // FIX 1: kembalikan tipe return void (bukan Future<void>)
+  @override
+  void dispose() {
+    cameraController.dispose();
+    super.dispose();
+  }
+
+  void _handleBarcode(BarcodeCapture capture) {
+    if (!mounted || isScan) return;
+
+    final barcode = capture.barcodes.firstOrNull;
+    if (barcode != null && barcode.displayValue != null) {
+      setState(() {
+        _barcode = barcode;
+        isScan = true;
+      });
+
+      context.read<GetQrcodeCheckinBloc>().add(
+            GetQrcodeCheckinEvent.getQrcodeCheckin(
+              barcode.displayValue!,
+              widget.isCheckin,
+            ),
+          );
+    }
+  }
 
   Widget _buildBarcode(Barcode? value) {
     if (value == null) {
       return const Text(
-        'Scan something!',
+        'Scan sesuatu!',
         overflow: TextOverflow.fade,
         style: TextStyle(color: Colors.white),
       );
     }
 
     return Text(
-      value.displayValue ?? 'No display value.',
+      value.displayValue ?? 'Tidak ada nilai.',
       overflow: TextOverflow.fade,
       style: const TextStyle(color: Colors.white),
     );
   }
-
-  void _handleBarcode(BarcodeCapture barcodes) {
-    if (mounted) {
-      // setState(() {
-      _barcode = barcodes.barcodes.firstOrNull;
-
-      if (_barcode != null && !isScan) {
-        context.read<GetQrcodeCheckinBloc>().add(
-            GetQrcodeCheckinEvent.getQrcodeCheckin(
-                _barcode!.displayValue ?? '', widget.isCheckin));
-
-        // log("BarCode Value: ${_barcode?.displayValue}");
-        //back
-        setState(() {
-          isScan = true;
-        });
-        // context.pushReplacement(MainPage());
-      }
-      // });
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // WidgetsBinding.instance.addObserver(this);
-
-    cameraController.start();
-    _subscription = cameraController.barcodes.listen(_handleBarcode);
-  }
-
-  @override
-  Future<void> dispose() async {
-    WidgetsBinding.instance.removeObserver(this);
-    unawaited(_subscription?.cancel());
-    _subscription = null;
-    super.dispose();
-    await cameraController.dispose();
-  }
-
-  // @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   if (!cameraController.value.isInitialized) {
-  //     return;
-  //   }
-
-  //   switch (state) {
-  //     case AppLifecycleState.detached:
-  //     case AppLifecycleState.hidden:
-  //     case AppLifecycleState.paused:
-  //       return;
-  //     case AppLifecycleState.resumed:
-  //       _subscription = cameraController.barcodes.listen(_handleBarcode);
-
-  //       unawaited(cameraController.start());
-  //     case AppLifecycleState.inactive:
-  //       unawaited(_subscription?.cancel());
-  //       _subscription = null;
-  //       unawaited(cameraController.stop());
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -124,76 +88,29 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () {
-            cameraController.dispose();
+            // Cukup pop, dispose() akan dipanggil otomatis oleh Lifecycle Widget
             Navigator.pop(context);
           },
         ),
         title: const Text('Scanning'),
         actions: [
-          IconButton(
-            color: Colors.white,
-            icon: ValueListenableBuilder(
-              valueListenable: cameraController,
-              builder: (context, state, child) {
-                switch (state.torchState) {
-                  case TorchState.auto:
-                    return IconButton(
-                      color: Colors.white,
-                      iconSize: 32.0,
-                      icon: const Icon(Icons.flash_auto),
-                      onPressed: () async {
-                        await cameraController.toggleTorch();
-                      },
-                    );
-                  case TorchState.off:
-                    return const Icon(Icons.flash_off, color: Colors.grey);
-                  case TorchState.on:
-                    return const Icon(Icons.flash_on, color: Colors.yellow);
-                  case TorchState.unavailable:
-                    return const Icon(
-                      Icons.no_flash,
-                      color: Colors.grey,
-                    );
-                }
-              },
-            ),
-            iconSize: 32.0,
-            onPressed: () => cameraController.toggleTorch(),
+          // FIX 2: Listen ke cameraController langsung untuk mengecek status Torch
+          ValueListenableBuilder<MobileScannerState>(
+            valueListenable: cameraController,
+            builder: (context, state, child) {
+              final isTorchOn = state.torchState == TorchState.on;
+              return IconButton(
+                icon: Icon(
+                  isTorchOn ? Icons.flash_on : Icons.flash_off,
+                  color: isTorchOn ? Colors.yellow : Colors.grey,
+                ),
+                onPressed: () => cameraController.toggleTorch(),
+              );
+            },
           ),
+          // Tombol Switch Kamera
           IconButton(
-            color: Colors.white,
-            icon: ValueListenableBuilder(
-              valueListenable: cameraController,
-              builder: (context, state, child) {
-                if (!state.isInitialized || !state.isRunning) {
-                  return const SizedBox.shrink();
-                }
-
-                final int? availableCameras = state.availableCameras;
-
-                if (availableCameras != null && availableCameras < 2) {
-                  return const SizedBox.shrink();
-                }
-
-                final Widget icon;
-
-                switch (state.cameraDirection) {
-                  case CameraFacing.front:
-                    icon = const Icon(Icons.camera_front);
-                  case CameraFacing.back:
-                    icon = const Icon(Icons.camera_rear);
-                }
-
-                return IconButton(
-                  iconSize: 32.0,
-                  icon: icon,
-                  onPressed: () async {
-                    await cameraController.switchCamera();
-                  },
-                );
-              },
-            ),
-            iconSize: 32.0,
+            icon: const Icon(Icons.cameraswitch, color: Colors.white),
             onPressed: () => cameraController.switchCamera(),
           ),
         ],
@@ -202,6 +119,7 @@ class _ScannerPageState extends State<ScannerPage> with WidgetsBindingObserver {
         children: [
           MobileScanner(
             controller: cameraController,
+            onDetect: _handleBarcode,
           ),
           MultiBlocListener(
             listeners: [
