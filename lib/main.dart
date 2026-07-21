@@ -51,12 +51,24 @@ import 'presentation/auth/pages/splash_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'presentation/overtimes/provider/overtime_provider.dart';
+import 'core/navigator key/navigator_key.dart';
+import 'core/session/session_manager.dart';
+import 'presentation/auth/pages/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
 
-  // PERBAIKAN: Mendaftarkan class custom kustom pesan yang kamu buat di bawah
+  SessionManager.instance.onSessionExpired = () {
+    final context = navigatorKey.currentContext;
+    if (context != null) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  };
   timeago.setLocaleMessages('id', KustomPesanIndonesia());
   timeago.setDefaultLocale('id');
 
@@ -157,6 +169,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LiburkaryawanProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,

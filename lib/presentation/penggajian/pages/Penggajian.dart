@@ -425,47 +425,12 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
     );
   }
 
-  Widget _buildTotalPenghasilan(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required Color color}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration:
-          BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-                color: const Color(0xFFC0F0D1),
-                borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: const Color(0xFF1F8B4D), size: 25),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: GoogleFonts.poppins(fontSize: 12)),
-              Text(subtitle,
-                  style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1F8B4D)))
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTotalPotongan(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required Color color}) {
+  Widget _buildTotalPenghasilan({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration:
@@ -475,23 +440,100 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
           Container(
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
-                color: const Color(0xFFFDD2DB),
-                borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, color: Colors.red, size: 25),
+              color: const Color(0xFFC0F0D1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF1F8B4D), size: 20),
           ),
-          const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: GoogleFonts.poppins(fontSize: 12)),
-              Text(subtitle,
-                  style: GoogleFonts.poppins(
+          const SizedBox(width: 6),
+          // [DIUBAH] Tambahkan Expanded & FittedBox agar teks menyesuaikan sisa lebar
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1F8B4D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalPotongan({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration:
+          BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDD2DB),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: Colors.red, size: 20),
+          ),
+          const SizedBox(width: 6),
+          // [DIUBAH] Tambahkan Expanded & FittedBox agar teks menyesuaikan sisa lebar
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                        fontSize: 10, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: Colors.red,
-                      fontWeight: FontWeight.w600))
-            ],
-          )
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
