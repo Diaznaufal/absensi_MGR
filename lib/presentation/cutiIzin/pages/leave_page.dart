@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/presentation/cutiIzin/pages/add_izin_page.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_absensi_app/core/core.dart';
 import 'package:flutter_absensi_app/presentation/cutiIzin/pages/add_leave_page.dart';
-import 'package:flutter_absensi_app/presentation/cutiIzin/pages/attachment_viewer_page.dart';
 import '../model/model_leave.dart';
 import '../model/model_izin.dart';
 import '../provider/leave_provider.dart';
-import '../provider/izin_provider.dart'; // PENTING: Pastikan import ini ada
+import '../provider/izin_provider.dart';
 
 class LeavePage extends StatefulWidget {
   const LeavePage({super.key});
@@ -22,7 +22,6 @@ class _LeavePageState extends State<LeavePage> {
   @override
   void initState() {
     super.initState();
-    // Memicu pengambilan data Cuti & Izin secara otomatis saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LeaveProvider>().getLeaveHistory();
       context.read<IzinProvider>().getIzinHistory();
@@ -32,97 +31,140 @@ class _LeavePageState extends State<LeavePage> {
   @override
   Widget build(BuildContext context) {
     final DateFormat dateFormatter = DateFormat('dd MMM yyyy');
+    final size = MediaQuery.of(context).size;
+    final bool isTablet = size.width >= 600;
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A49B7),
         elevation: 0,
-        toolbarHeight: 60,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
             InkWell(
               onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.white, size: 22),
+              borderRadius: BorderRadius.circular(20),
+              child: const Padding(
+                padding: EdgeInsets.all(4.0),
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
             ),
-            const SpaceWidth(20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Permintaan Cuti dan Izin',
-                  style: GoogleFonts.poppins(
-                      fontSize: 18,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Permintaan Cuti dan Izin',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white),
-                ),
-                Text(
-                  'Pantau dan kelola pengajuan cuti anda',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: Colors.white.withOpacity(0.8)),
-                ),
-              ],
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Pantau dan kelola pengajuan cuti anda',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.sp,
+                      color: Colors.white.withOpacity(0.85),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
       backgroundColor: const Color(0xDEEFF0F2),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              // Menggunakan Consumer2 untuk mendengarkan LeaveProvider dan IzinProvider sekaligus
-              child: Consumer2<LeaveProvider, IzinProvider>(
-                builder: (context, leaveProvider, izinProvider, child) {
-                  // Tampilkan loading jika salah satu provider sedang mengambil data
-                  if (leaveProvider.isLoading || izinProvider.isLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF0A49B7),
-                      ),
-                    );
-                  }
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Consumer2<LeaveProvider, IzinProvider>(
+                    builder: (context, leaveProvider, izinProvider, child) {
+                      final bool isFirstTimeLoading =
+                          (leaveProvider.isLoading || izinProvider.isLoading) &&
+                              leaveProvider.listLeave.isEmpty &&
+                              izinProvider.listIzin.isEmpty;
 
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    child: _buildLeaveAndIzinList(
-                        context, leaveProvider, izinProvider, dateFormatter),
-                  );
-                },
-              ),
+                      if (isFirstTimeLoading) {
+                        return Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTablet ? 16.w : 12.w,
+                            vertical: 10.h,
+                          ),
+                          child: Column(
+                            children: [
+                              _buildSummaryCard(context, 0),
+                              SizedBox(height: 20.h),
+                              const Expanded(
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF0A49B7),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 16.w : 12.w,
+                          vertical: 10.h,
+                        ),
+                        child: _buildLeaveAndIzinList(
+                          context,
+                          leaveProvider,
+                          izinProvider,
+                          dateFormatter,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildLeaveAndIzinList(
-      BuildContext context,
-      LeaveProvider leaveProvider,
-      IzinProvider izinProvider,
-      DateFormat formatter) {
+    BuildContext context,
+    LeaveProvider leaveProvider,
+    IzinProvider izinProvider,
+    DateFormat formatter,
+  ) {
     final leaves = leaveProvider.listLeave;
     final izins = izinProvider.listIzin;
-
-    // Menghitung total gabungan riwayat
     final totalGabungan = leaves.length + izins.length;
 
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async {
-        // Mendukung Pull-to-Refresh secara manual untuk kedua data
         await leaveProvider.getLeaveHistory();
         await izinProvider.getIzinHistory();
       },
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 32),
-        // Jumlah item: 1 Summary Card + (jika kosong tampilkan 1 empty state, jika ada data tampilkan totalnya)
+        padding: EdgeInsets.only(bottom: 32.h),
         itemCount: totalGabungan == 0 ? 2 : totalGabungan + 1,
-        separatorBuilder: (context, index) => const SpaceHeight(16),
+        separatorBuilder: (context, index) => SizedBox(height: 12.h),
         itemBuilder: (context, index) {
           if (index == 0) {
             return _buildSummaryCard(context, totalGabungan);
@@ -132,10 +174,8 @@ class _LeavePageState extends State<LeavePage> {
             return _buildEmptyStateBelowCard();
           }
 
-          // Index data dikurangi 1 karena index 0 dipakai SummaryCard
           final dataIndex = index - 1;
 
-          // Tampilkan data Cuti terlebih dahulu, kemudian data Izin di bawahnya
           if (dataIndex < leaves.length) {
             final leave = leaves[dataIndex];
             return _buildLeaveCard(context, leaveProvider, leave, formatter);
@@ -150,15 +190,16 @@ class _LeavePageState extends State<LeavePage> {
 
   Widget _buildSummaryCard(BuildContext context, int totalLeaves) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18.r),
         color: const Color(0xFF0A49B7),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 18,
-              offset: const Offset(0, 10))
+            color: const Color(0xFF0A49B7).withOpacity(0.2),
+            blurRadius: 14.r,
+            offset: Offset(0, 6.h),
+          ),
         ],
       ),
       child: Column(
@@ -167,182 +208,68 @@ class _LeavePageState extends State<LeavePage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(10.r),
                 decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16)),
-                child: const Icon(Icons.event_note_rounded,
-                    color: Colors.white, size: 28),
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(
+                  Icons.event_note_rounded,
+                  color: Colors.white,
+                  size: 24.r,
+                ),
               ),
-              const SpaceWidth(16),
+              SizedBox(width: 12.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total Pengajuan Cuti & Izin',
-                        style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            color: Colors.white.withOpacity(0.9))),
-                    Text('$totalLeaves Pengajuan',
-                        style: GoogleFonts.poppins(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white)),
+                    Text(
+                      'Total Pengajuan Cuti & Izin',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12.sp,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    Text(
+                      '$totalLeaves Pengajuan',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20.sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SpaceHeight(20),
+          SizedBox(height: 14.h),
           SizedBox(
             width: double.infinity,
+            height: 44.h,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
               ),
               onPressed: () {
                 Provider.of<LeaveProvider>(context, listen: false).resetForm();
                 Provider.of<IzinProvider>(context, listen: false).resetForm();
-
-                showModalBottomSheet(
-                  context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  builder: (BuildContext context) {
-                    return SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 4,
-                              margin: const EdgeInsets.only(bottom: 10),
-                              decoration: BoxDecoration(
-                                color: AppColors.grey.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            Text(
-                              'Pilih Jenis Pengajuan',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.black,
-                              ),
-                            ),
-                            const SpaceHeight(10),
-                            Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color: Colors.black.withAlpha(55),
-                                        spreadRadius: 1,
-                                        blurRadius: 5)
-                                  ]),
-                              child: ListTile(
-                                leading: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                      Icons.calendar_today_rounded,
-                                      color: AppColors.primary),
-                                ),
-                                title: Text('Ajukan Cuti',
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w500)),
-                                subtitle: Text(
-                                    'Menggunakan sisa kuota cuti tahunan/sakit/darurat',
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 12, color: AppColors.grey)),
-                                onTap: () async {
-                                  Navigator.pop(context);
-
-                                  await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AddLeavePage()));
-
-                                  if (context.mounted) {
-                                    context
-                                        .read<LeaveProvider>()
-                                        .getLeaveHistory();
-                                  }
-                                },
-                              ),
-                            ),
-                            const SpaceHeight(8),
-                            Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color: Colors.black.withAlpha(55),
-                                        spreadRadius: 1,
-                                        blurRadius: 5)
-                                  ]),
-                              child: ListTile(
-                                leading: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.money_off_rounded,
-                                      color: Colors.red),
-                                ),
-                                title: Text('Ajukan Izin',
-                                    style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w500)),
-                                subtitle: Text(
-                                    'Izin tidak masuk kerja di luar kuota cuti (Potong Gaji)',
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 12, color: AppColors.grey)),
-                                onTap: () async {
-                                  Navigator.pop(context);
-
-                                  await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const AddIzinPage()));
-
-                                  // Menarik data Izin terbaru setelah halaman form ditutup
-                                  if (context.mounted) {
-                                    context
-                                        .read<IzinProvider>()
-                                        .getIzinHistory();
-                                  }
-                                },
-                              ),
-                            ),
-                            const SpaceHeight(12),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
+                _showSelectionBottomSheet(context);
               },
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              label: Text('Ajukan Cuti / Izin',
-                  style: GoogleFonts.poppins(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+              icon: Icon(Icons.add_circle_outline_rounded, size: 20.r),
+              label: Text(
+                'Ajukan Cuti / Izin',
+                style: GoogleFonts.poppins(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],
@@ -350,8 +277,159 @@ class _LeavePageState extends State<LeavePage> {
     );
   }
 
-  Widget _buildLeaveCard(BuildContext context, LeaveProvider provider,
-      LeaveModel leave, DateFormat formatter) {
+  void _showSelectionBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (BuildContext context) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.pop(context),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () {},
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 550),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24.r)),
+                  ),
+                  padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 40.w,
+                          height: 4.h,
+                          margin: EdgeInsets.only(bottom: 14.h),
+                          decoration: BoxDecoration(
+                            color: AppColors.grey.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                        ),
+                        Text(
+                          'Pilih Jenis Pengajuan',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        SizedBox(height: 14.h),
+                        _buildModalOption(
+                          title: 'Ajukan Cuti',
+                          subtitle:
+                              'Menggunakan sisa kuota cuti tahunan/sakit/darurat',
+                          icon: Icons.calendar_today_rounded,
+                          iconColor: AppColors.primary,
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddLeavePage(),
+                              ),
+                            );
+                            if (context.mounted) {
+                              context.read<LeaveProvider>().getLeaveHistory();
+                            }
+                          },
+                        ),
+                        SizedBox(height: 10.h),
+                        _buildModalOption(
+                          title: 'Ajukan Izin',
+                          subtitle:
+                              'Izin tidak masuk kerja di luar kuota cuti (Potong Gaji)',
+                          icon: Icons.money_off_rounded,
+                          iconColor: Colors.red,
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AddIzinPage(),
+                              ),
+                            );
+                            if (context.mounted) {
+                              context.read<IzinProvider>().getIzinHistory();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildModalOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            spreadRadius: 1,
+            blurRadius: 6.r,
+          ),
+        ],
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 4.h),
+        leading: Container(
+          padding: EdgeInsets.all(8.r),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10.r),
+          ),
+          child: Icon(icon, color: iconColor, size: 20.r),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(
+            fontSize: 13.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: GoogleFonts.poppins(
+            fontSize: 10.5.sp,
+            color: AppColors.grey,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeaveCard(
+    BuildContext context,
+    LeaveProvider provider,
+    LeaveModel leave,
+    DateFormat formatter,
+  ) {
     final statusLower = leave.status.toLowerCase();
 
     String statusText = 'Pending';
@@ -372,7 +450,6 @@ class _LeavePageState extends State<LeavePage> {
       persetujuanText = 'Ditolak oleh HR/Admin';
     }
 
-    // 🌟 LOGIKA PEMBERSIH TEKS ALASAN: Menghapus format '[Cuti Tahunan] - ' jika ada
     String cleanReason = leave.description;
     if (cleanReason.contains('] - ')) {
       cleanReason = cleanReason.split('] - ').last;
@@ -380,131 +457,90 @@ class _LeavePageState extends State<LeavePage> {
       cleanReason = cleanReason.split('] ').last;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 10))
-        ],
-        border: Border.all(color: AppColors.light.withOpacity(0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A49B7),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            // 🌟 SINKRONISASI IKON: Memastikan mengambil ikon dinamis dari provider
-            child: Icon(
-              provider.getLeaveIcon(leave.leaveType),
-              color: Colors.white,
-              size: 28,
-            ),
+    final String dateDisplay =
+        '${formatter.format(leave.startDate)}${leave.endDate != null ? ' - ${formatter.format(leave.endDate!)}' : ''}';
+
+    return _buildUnifiedCard(
+      title: leave.leaveType.isNotEmpty ? leave.leaveType : 'Cuti Karyawan',
+      dateText: dateDisplay,
+      statusLabel: statusText,
+      statusColor: statusColor,
+      icon: provider.getLeaveIcon(leave.leaveType),
+      rows: [
+        _InfoData(
+            Icons.timelapse_rounded, 'Total Hari', '${leave.totalDays} hari'),
+        _InfoData(Icons.notes_rounded, 'Alasan', cleanReason),
+        _InfoData(Icons.verified_user_rounded, 'Persetujuan', persetujuanText),
+        if (leave.approvedAt != null)
+          _InfoData(
+            Icons.event_available_rounded,
+            'Approved At',
+            formatter.format(leave.approvedAt!),
           ),
-          const SpaceWidth(16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 🌟 SINKRONISASI JUDUL: Memastikan judul Jenis Cuti (Cuti Tahunan / Cuti Sakit) muncul di atas
-                          Text(
-                            leave.leaveType.isNotEmpty
-                                ? leave.leaveType
-                                : 'Cuti Karyawan',
-                            style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.black),
-                          ),
-                          const SpaceHeight(4),
-                          Text(
-                              '${formatter.format(leave.startDate)}${leave.endDate != null ? ' - ${formatter.format(leave.endDate!)}' : ''}',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 13, color: AppColors.grey)),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: statusColor.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        statusText,
-                        style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor),
-                      ),
-                    ),
-                  ],
-                ),
-                const SpaceHeight(16),
-                _buildInfoRow(Icons.timelapse_rounded, 'Total Hari',
-                    '${leave.totalDays} hari'),
-                const SpaceHeight(12),
-                // 🌟 UPDATE FIELD ALASAN: Menggunakan string cleanReason yang sudah dibersihkan dari bracket
-                _buildInfoRow(Icons.notes_rounded, 'Alasan', cleanReason),
-                const SpaceHeight(12),
-                _buildInfoRow(Icons.verified_user_rounded, 'Persetujuan',
-                    persetujuanText),
-                if (leave.approvedAt != null) ...[
-                  const SpaceHeight(12),
-                  _buildInfoRow(Icons.event_available_rounded, 'Approved At',
-                      formatter.format(leave.approvedAt!)),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
+      ],
     );
   }
 
-  // WIDGET UPDATE: Card Khusus Tampilan Riwayat Izin dengan Status & Total Hari & Info Persetujuan Dinamis
   Widget _buildIzinCard(
-      BuildContext context, ModelIzin izin, DateFormat formatter) {
-    // 1. Tentukan warna status secara dinamis berdasarkan data 'status' dari BE ('0', '1', '2')
-    Color statusColor = const Color(0xFFFFB020); // Default Kuning (Pending)
-    String persetujuanText =
-        'Menunggu Persetujuan HRD/Admin'; // 🌟 Sinkronisasi Teks Default
+    BuildContext context,
+    ModelIzin izin,
+    DateFormat formatter,
+  ) {
+    Color statusColor = const Color(0xFFFFB020);
+    String persetujuanText = 'Menunggu Persetujuan HRD/Admin';
 
     if (izin.status == '2') {
-      statusColor = AppColors.green; // Hijau (Disetujui)
-      persetujuanText = 'Diterima oleh HRD/Admin'; // 🌟 Dinamis jika diterima
+      statusColor = AppColors.green;
+      persetujuanText = 'Diterima oleh HRD/Admin';
     } else if (izin.status == '1') {
-      statusColor = AppColors.red; // Merah (Ditolak)
-      persetujuanText = 'Ditolak oleh HRD/Admin'; // 🌟 Dinamis jika ditolak
+      statusColor = AppColors.red;
+      persetujuanText = 'Ditolak oleh HRD/Admin';
     }
 
+    final String dateDisplay =
+        '${formatter.format(izin.tanggalIzin)}${izin.endDate != null ? ' - ${formatter.format(izin.endDate!)}' : ''}';
+
+    return _buildUnifiedCard(
+      title: izin.alasanIzin,
+      dateText: dateDisplay,
+      statusLabel: izin.statusLabel,
+      statusColor: statusColor,
+      icon: Icons.assignment_ind_rounded,
+      rows: [
+        _InfoData(
+          Icons.timelapse_rounded,
+          'Total Hari',
+          '${izin.calculatedTotalDays} hari',
+        ),
+        _InfoData(
+          Icons.notes_rounded,
+          'Keterangan',
+          izin.description.isNotEmpty ? izin.description : '-',
+        ),
+        _InfoData(Icons.verified_user_rounded, 'Persetujuan', persetujuanText),
+      ],
+    );
+  }
+
+  Widget _buildUnifiedCard({
+    required String title,
+    required String dateText,
+    required String statusLabel,
+    required Color statusColor,
+    required IconData icon,
+    required List<_InfoData> rows,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(18.r),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 10))
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10.r,
+            offset: Offset(0, 4.h),
+          ),
         ],
         border: Border.all(color: AppColors.light.withOpacity(0.4)),
       ),
@@ -512,18 +548,18 @@ class _LeavePageState extends State<LeavePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(8.r),
             decoration: BoxDecoration(
               color: const Color(0xFF0A49B7),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(14.r),
             ),
-            child: const Icon(
-              Icons.assignment_ind_rounded,
+            child: Icon(
+              icon,
               color: Colors.white,
-              size: 28,
+              size: 22.r,
             ),
           ),
-          const SpaceWidth(16),
+          SizedBox(width: 10.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,49 +572,51 @@ class _LeavePageState extends State<LeavePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            izin.alasanIzin,
+                            title,
                             style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.black),
+                              fontSize: 13.5.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.black,
+                            ),
                           ),
-                          const SpaceHeight(4),
+                          SizedBox(height: 2.h),
                           Text(
-                            '${formatter.format(izin.tanggalIzin)}${izin.endDate != null ? ' - ${formatter.format(izin.endDate!)}' : ''}',
+                            dateText,
                             style: GoogleFonts.poppins(
-                                fontSize: 13, color: AppColors.grey),
+                              fontSize: 10.5.sp,
+                              color: AppColors.grey,
+                            ),
                           ),
                         ],
                       ),
                     ),
+                    SizedBox(width: 6.w),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 3.h,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12.r),
                         border: Border.all(color: statusColor.withOpacity(0.3)),
                       ),
                       child: Text(
-                        izin.statusLabel, // Mengambil getter otomatis (Pending/Disetujui/Ditolak)
+                        statusLabel,
                         style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor),
+                          fontSize: 10.sp,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SpaceHeight(16),
-                _buildInfoRow(Icons.timelapse_rounded, 'Total Hari',
-                    '${izin.calculatedTotalDays} hari'),
-                const SpaceHeight(12),
-                _buildInfoRow(Icons.notes_rounded, 'Keterangan',
-                    izin.description.isNotEmpty ? izin.description : '-'),
-                const SpaceHeight(12),
-                // PERBAIKAN: Menambahkan Info Row Persetujuan agar sinkron dengan Cuti
-                _buildInfoRow(Icons.verified_user_rounded, 'Persetujuan',
-                    persetujuanText),
+                SizedBox(height: 12.h),
+                for (int i = 0; i < rows.length; i++) ...[
+                  if (i > 0) SizedBox(height: 8.h),
+                  _buildInfoRow(rows[i].icon, rows[i].label, rows[i].value),
+                ],
               ],
             ),
           ),
@@ -592,26 +630,34 @@ class _LeavePageState extends State<LeavePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(5.r),
           decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: AppColors.primary, size: 18),
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 14.r),
         ),
-        const SpaceWidth(12),
+        SizedBox(width: 8.w),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label,
-                  style:
-                      GoogleFonts.poppins(fontSize: 12, color: AppColors.grey)),
-              const SpaceHeight(4),
-              Text(value,
-                  style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.black)),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 10.sp,
+                  color: AppColors.grey,
+                ),
+              ),
+              SizedBox(height: 1.h),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 11.5.sp,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.black,
+                ),
+              ),
             ],
           ),
         ),
@@ -621,36 +667,51 @@ class _LeavePageState extends State<LeavePage> {
 
   Widget _buildEmptyStateBelowCard() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: EdgeInsets.symmetric(vertical: 30.h),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(12.r),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.inbox_rounded,
-                  color: AppColors.primary, size: 40),
+              child: Icon(
+                Icons.inbox_rounded,
+                color: AppColors.primary,
+                size: 32.r,
+              ),
             ),
-            const SpaceHeight(16),
+            SizedBox(height: 12.h),
             Text(
               'Belum ada riwayat cuti & izin',
               style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.black),
+                fontSize: 13.sp,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black,
+              ),
             ),
-            const SpaceHeight(4),
+            SizedBox(height: 2.h),
             Text(
               'Pengajuan Anda akan muncul di sini.',
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
+              style: GoogleFonts.poppins(
+                fontSize: 10.5.sp,
+                color: Colors.black54,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _InfoData {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  _InfoData(this.icon, this.label, this.value);
 }

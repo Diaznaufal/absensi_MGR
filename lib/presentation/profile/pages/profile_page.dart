@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_absensi_app/presentation/profile/pages/update_profile_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-// Pastikan import path di bawah ini disesuaikan dengan struktur folder proyek Anda
+// Import path disesuaikan dengan struktur folder proyek
 import 'package:flutter_absensi_app/core/core.dart';
 import 'package:flutter_absensi_app/data/datasources/auth_local_datasource.dart';
 import 'package:flutter_absensi_app/presentation/auth/pages/login_page.dart';
-import 'package:flutter_absensi_app/presentation/profile/pages/update_profile_page.dart';
 import 'package:flutter_absensi_app/presentation/profile/bloc/get_user/get_user_bloc.dart';
-import 'package:flutter_absensi_app/data/models/response/user_response_model.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -31,7 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 56.h,
         backgroundColor: const Color(0xFF0A49B7),
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -44,7 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   'Profil Saya',
                   style: GoogleFonts.poppins(
-                    fontSize: 22,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -52,17 +52,33 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   'Kelola informasi akun Anda',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
+                    fontSize: 11.sp,
                     color: Colors.white.withOpacity(0.9),
                   ),
                 ),
               ],
             ),
             InkWell(
-              onTap: () {},
+              onTap: () {
+                final state = context.read<GetUserBloc>().state;
+                final user = state.maybeWhen(
+                  success: (u) => u,
+                  orElse: () => null,
+                );
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UpdateProfilePage(
+                      user: user,
+                    ),
+                  ),
+                );
+              },
               child: Icon(
                 Icons.edit,
                 color: Colors.white,
+                size: 20.r,
               ),
             )
           ],
@@ -77,55 +93,67 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               error: (message) => Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.r),
                   child: Text(
                     message,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(color: Colors.red),
+                    style:
+                        GoogleFonts.poppins(color: Colors.red, fontSize: 12.sp),
                   ),
                 ),
               ),
               success: (user) {
-                // Objek 'user' di sini bertipe UserResponseModel
                 final employee = user.employee;
 
                 return SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: 12.w),
                     child: Column(
                       children: [
-                        const SpaceHeight(16),
+                        SizedBox(height: 14.h),
 
                         // --- CARD 1: PROFILE BRIEF (DATA DINAMIS) ---
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.all(14.r),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14.r),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.04),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                                blurRadius: 8.r,
+                                offset: Offset(0, 2.h),
                               ),
                             ],
                           ),
                           child: Row(
                             children: [
                               CircleAvatar(
-                                radius: 36,
+                                radius: 32.r,
                                 backgroundColor: Colors.grey[200],
-                                backgroundImage: user.avatar != null &&
-                                        user.avatar!.isNotEmpty
+                                backgroundImage: (user.avatar != null &&
+                                        user.avatar!.isNotEmpty &&
+                                        user.avatar!.startsWith(
+                                            'http')) // 🛡️ Hanya panggil jika URL HTTP valid
                                     ? NetworkImage(user.avatar!)
                                     : null,
-                                child:
-                                    user.avatar == null || user.avatar!.isEmpty
-                                        ? Icon(Icons.person,
-                                            size: 44, color: Colors.grey[400])
-                                        : null,
+                                child: (user.avatar == null ||
+                                        user.avatar!.isEmpty ||
+                                        !user.avatar!.startsWith('http'))
+                                    ? Text(
+                                        user.name != null &&
+                                                user.name!.isNotEmpty
+                                            ? user.name!.trim()[0].toUpperCase()
+                                            : 'U',
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 20.sp,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      )
+                                    : null,
                               ),
-                              const SpaceWidth(16),
+                              SizedBox(width: 12.w),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,30 +166,29 @@ class _ProfilePageState extends State<ProfilePage> {
                                               .join(' ')
                                           : '-',
                                       style: GoogleFonts.poppins(
-                                        fontSize: 16,
+                                        fontSize: 14.sp,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black87,
                                       ),
                                     ),
-                                    SpaceHeight(2),
+                                    SizedBox(height: 2.h),
                                     Text(
                                       user.roleLabel ?? 'Karyawan',
                                       style: GoogleFonts.poppins(
-                                          fontSize: 13,
-                                          color: Color(0xFF0A49B7),
+                                          fontSize: 11.5.sp,
+                                          color: const Color(0xFF0A49B7),
                                           fontWeight: FontWeight.w600),
                                     ),
-                                    const SpaceHeight(10),
-                                    Row(
+                                    SizedBox(height: 8.h),
+                                    Wrap(
+                                      spacing: 6.w,
+                                      runSpacing: 4.h,
                                       children: [
                                         _buildBadge(
-                                            // Menampilkan ID Divisi dari relasi employee
                                             employee?.namePosition ?? '-',
                                             const Color(0xFFF0F4F8),
                                             Colors.grey[700]!),
-                                        const SpaceWidth(8),
                                         _buildBadge(
-                                            // Menampilkan ID Divisi dari relasi employee
                                             getEmployeeType(
                                                 employee?.typeEmployee),
                                             const Color(0xFFF0F8F2),
@@ -175,19 +202,19 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
 
-                        const SpaceHeight(16),
+                        SizedBox(height: 14.h),
 
                         // --- CARD 2: DATA KARYAWAN (DATA DINAMIS) ---
                         Container(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 6.h),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14.r),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.04),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                                blurRadius: 8.r,
+                                offset: Offset(0, 2.h),
                               ),
                             ],
                           ),
@@ -196,10 +223,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             children: [
                               _buildSectionTitle(
                                   Icons.badge_outlined, 'Data Karyawan'),
-                              const Divider(
-                                height: 24,
+                              Divider(
+                                height: 20.h,
                                 thickness: 1,
-                                color: Colors.black26,
+                                color: Colors.black12,
                               ),
                               _buildRowItem('NIP', employee?.nip ?? '-',
                                   'assets/icons/personCard.svg'),
@@ -220,19 +247,19 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
 
-                        const SpaceHeight(16),
+                        SizedBox(height: 14.h),
 
                         // --- CARD 3: INFORMASI KONTAK (DATA DINAMIS) ---
                         Container(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 6.h),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14.r),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.04),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
+                                blurRadius: 8.r,
+                                offset: Offset(0, 2.h),
                               ),
                             ],
                           ),
@@ -241,10 +268,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             children: [
                               _buildSectionTitle(Icons.contact_phone_outlined,
                                   'Informasi Kontak'),
-                              const Divider(
-                                height: 24,
+                              Divider(
+                                height: 20.h,
                                 thickness: 1,
-                                color: Colors.black26,
+                                color: Colors.black12,
                               ),
                               _buildRowItem('Nomor HP', employee?.noHp ?? '-',
                                   'assets/icons/phone_outline.svg'),
@@ -252,50 +279,55 @@ class _ProfilePageState extends State<ProfilePage> {
                                   'assets/icons/emailOutline.svg'),
                               _buildRowItem(
                                   'Alamat',
-                                  employee?.fullAddress ??
-                                      '-', // Tempat lahir digunakan sementara sebagai data alamat jika kolom alamat terpisah belum ada
-                                  'assets/icons/locationOutline.svg'),
+                                  employee?.fullAddress ?? '-',
+                                  'assets/icons/locationOutline.svg',
+                                  isLast: true),
                             ],
                           ),
                         ),
 
-                        const SpaceHeight(24),
+                        SizedBox(height: 20.h),
 
                         // --- BUTTON LOGOUT ---
                         SizedBox(
                           width: double.infinity,
-                          height: 50,
+                          height: 46.h,
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0C54BE),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12.r),
                               ),
                               elevation: 0,
                             ),
                             onPressed: () {
                               _showLogoutDialog();
                             },
-                            icon: const Icon(Icons.logout,
-                                color: Colors.white, size: 20),
+                            icon: Icon(Icons.logout,
+                                color: Colors.white, size: 18.r),
                             label: Text(
                               'Logout',
                               style: GoogleFonts.poppins(
-                                fontSize: 15,
+                                fontSize: 13.5.sp,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
                               ),
                             ),
                           ),
                         ),
-                        const SpaceHeight(15),
+                        SizedBox(
+                            height: 10
+                                .h), // Extra padding bawah agar tidak tertutup BottomNavBar
                       ],
                     ),
                   ),
                 );
               },
-              orElse: () => const Center(
-                child: Text('Memuat data profil...'),
+              orElse: () => Center(
+                child: Text(
+                  'Memuat data profil...',
+                  style: TextStyle(fontSize: 12.sp),
+                ),
               ),
             );
           },
@@ -308,18 +340,18 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(8.r),
           decoration: BoxDecoration(
             color: const Color(0xFF0C54BE),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
-          child: Icon(icon, color: Colors.white, size: 20),
+          child: Icon(icon, color: Colors.white, size: 18.r),
         ),
-        const SpaceWidth(12),
+        SizedBox(width: 10.w),
         Text(
           title,
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 13.5.sp,
             fontWeight: FontWeight.bold,
             color: Colors.black87,
           ),
@@ -333,32 +365,32 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
+          padding: EdgeInsets.symmetric(vertical: 4.h),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(6.r),
                 decoration: BoxDecoration(
                     color: const Color(0xff0c54be).withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(4)),
+                    borderRadius: BorderRadius.circular(4.r)),
                 child: SvgPicture.asset(
                   svgPath,
-                  width: 18,
-                  height: 17,
+                  width: 16.r,
+                  height: 16.r,
                   colorFilter: const ColorFilter.mode(
                     Color(0xFF0C54BE),
                     BlendMode.srcIn,
                   ),
                 ),
               ),
-              const SpaceWidth(10),
+              SizedBox(width: 8.w),
               Expanded(
                 flex: 3,
                 child: Text(
                   label,
                   style: GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 11.5.sp,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -369,19 +401,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   value,
                   textAlign: TextAlign.end,
                   style: GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 11.5.sp,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
               ),
-              const SizedBox(height: 5)
             ],
           ),
         ),
         if (!isLast)
-          const Divider(
-            height: 22,
+          Divider(
+            height: 16.h,
             thickness: 1,
             color: Colors.black12,
           ),
@@ -391,22 +422,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildBadge(String text, Color bgColor, Color textColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(6.r),
       ),
-      child: Row(
-        children: [
-          Text(
-            text,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 10.sp,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -415,21 +442,23 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.r)),
         title: Text(
           'Konfirmasi Logout',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          style:
+              GoogleFonts.poppins(fontSize: 14.sp, fontWeight: FontWeight.bold),
         ),
         content: Text(
           'Apakah Anda yakin ingin keluar dari akun Anda?',
-          style: GoogleFonts.poppins(),
+          style: GoogleFonts.poppins(fontSize: 12.sp),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Batal',
-              style: GoogleFonts.poppins(color: Colors.grey),
+              style: GoogleFonts.poppins(fontSize: 12.sp, color: Colors.grey),
             ),
           ),
           TextButton(
@@ -448,6 +477,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: Text(
               'Keluar',
               style: GoogleFonts.poppins(
+                fontSize: 12.sp,
                 color: Colors.red,
                 fontWeight: FontWeight.bold,
               ),

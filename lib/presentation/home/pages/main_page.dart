@@ -1,7 +1,6 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_absensi_app/data/models/response/auth_response_model.dart'; // Tetap butuh ini untuk class User
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/presentation/penggajian/pages/penggajian.dart';
 import 'package:flutter_absensi_app/presentation/history/pages/history_page.dart';
 import 'package:flutter_absensi_app/presentation/home/pages/home_page.dart';
@@ -18,14 +17,21 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
 
-  // Mengembalikan widget secara instan tanpa memanggil API / Local Datasource
-  List<Widget> get _widgets => [
-        HomePage(),
-        HistoryPage(),
-        RingkasanKerja(),
-        // Mempassing objek User kosong agar parameter 'required' terpenuhi dan halaman langsung terbuka
-        ProfilePage(),
-      ];
+  // GlobalKey untuk trigger fungsi refresh di HistoryPage
+  final GlobalKey<HistoryPageState> _historyKey = GlobalKey<HistoryPageState>();
+
+  late final List<Widget> _widgets;
+
+  @override
+  void initState() {
+    super.initState();
+    _widgets = [
+      const HomePage(),
+      HistoryPage(key: _historyKey),
+      const RingkasanKerja(),
+      const ProfilePage(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,17 +46,34 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _buildModernBottomNavBar() {
+    // Ambil tinggi inset navigasi bawah HP (gesture bar / tombol back)
+    final double bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0A49B7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A49B7),
         borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(18), topRight: Radius.circular(18)),
+          topLeft: Radius.circular(18.r),
+          topRight: Radius.circular(18.r),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10.r,
+            offset: Offset(0, -2.h),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(18.r),
+          topRight: Radius.circular(18.r),
+        ),
         child: Container(
-          height: 65,
-          decoration: const BoxDecoration(),
+          // Tambahkan bottomInset agar navbar tidak tertutup tombol sistem HP
+          height: 55.h + bottomInset,
+          padding:
+              EdgeInsets.only(bottom: bottomInset > 0 ? bottomInset / 1.5 : 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -74,40 +97,53 @@ class _MainPageState extends State<MainPage> {
   }) {
     final isSelected = _selectedIndex == index;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.white.withOpacity(0.15)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+
+          // Otomatis refresh data riwayat saat tab Riwayat (index 1) dibuka
+          if (index == 1) {
+            _historyKey.currentState?.refreshData();
+          }
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withOpacity(0.2)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                icon,
+                color:
+                    isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+                size: 20.r,
+              ),
             ),
-            child: Icon(
-              icon,
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-              size: 22,
+            SizedBox(height: 1.h),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 10.sp,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                color:
+                    isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 10,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

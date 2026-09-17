@@ -20,7 +20,6 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_absensi_app/core/core.dart';
 import 'package:flutter_absensi_app/core/constants/variables.dart';
 import 'package:flutter_absensi_app/core/network/api_client.dart';
-import 'package:flutter_absensi_app/data/models/request/checkinout_request_model.dart';
 
 import '../face_detector_painter.dart';
 import '../../bloc/checkin_attendance/checkin_attendance_bloc.dart';
@@ -51,6 +50,7 @@ class FaceDetectorCheckinPage extends StatefulWidget {
 class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   final FaceDetector _faceDetector = FaceDetector(
     options: FaceDetectorOptions(
+      performanceMode: FaceDetectorMode.fast,
       enableContours: false,
       enableLandmarks: false,
     ),
@@ -58,7 +58,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   bool _canProcess = true;
   bool _isBusy = false;
   CustomPaint? _customPaint;
-  String? _text;
   var _cameraLensDirection = CameraLensDirection.front;
 
   late List<RecognitionEmbedding> recognitions = [];
@@ -69,11 +68,11 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   bool _isActionLoading = false;
   bool _isDialogShowing = false;
   bool _isDownloadingMasterFace = true;
+  String? _masterFaceErrorMessage;
 
   String _cameraKey = 'initial_checkin_camera_key';
   List<double>? _serverMasterEmbedding;
 
-  img.Image? image;
   img.Image? capturedImage;
 
   @override
@@ -91,19 +90,61 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
     super.dispose();
   }
 
+  // Helper 1: Normalisasi L2 Vector Embedding
+  List<double> _normalizeEmbedding(List<double> embedding) {
+    double sum = 0.0;
+    for (var val in embedding) {
+      sum += val * val;
+    }
+    double magnitude = sqrt(sum);
+    if (magnitude == 0.0) return embedding;
+    return embedding.map((e) => e / magnitude).toList();
+  }
+
+  // Helper 2: Crop Wajah dengan Margin/Padding agar tidak terpotong kaku
+  img.Image _cropFaceWithPadding(img.Image srcImage, Rect faceRect) {
+    const double paddingFactor = 0.15; // 15% margin di sekitar wajah
+    final double padW = faceRect.width * paddingFactor;
+    final double padH = faceRect.height * paddingFactor;
+
+    final int x = (faceRect.left - padW).toInt().clamp(0, srcImage.width - 1);
+    final int y = (faceRect.top - padH).toInt().clamp(0, srcImage.height - 1);
+    final int w =
+        (faceRect.width + (padW * 2)).toInt().clamp(1, srcImage.width - x);
+    final int h =
+        (faceRect.height + (padH * 2)).toInt().clamp(1, srcImage.height - y);
+
+    return img.copyCrop(srcImage, x: x, y: y, width: w, height: h);
+  }
+
+  // Helper 3: Hitung Normalized Euclidean Distance
+  double _calculateEuclideanDistance(List<double> emb1, List<double> emb2) {
+    final norm1 = _normalizeEmbedding(emb1);
+    final norm2 = _normalizeEmbedding(emb2);
+
+    double sum = 0.0;
+    for (int i = 0; i < norm1.length; i++) {
+      double diff = norm1[i] - norm2[i];
+      sum += diff * diff;
+    }
+    return sqrt(sum);
+  }
+
   Future<void> _fetchAndPrepareMasterFace() async {
+    setState(() {
+      _isDownloadingMasterFace = true;
+      _masterFaceErrorMessage = null;
+    });
+
     try {
-      print(
-          '📥 Menghubungi server untuk memuat profil foto wajah terdaftar...');
       final url = Uri.parse('${Variables.baseUrl}/face/status');
       final response = await ApiClient.instance.get(url);
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final String? imageUrl = decoded['data']['imageface_register'];
+        final String? imageUrl = decoded['data']?['imageface_register'];
 
         if (imageUrl != null && imageUrl.isNotEmpty) {
-          print('🌐 Mengunduh data biner master foto wajah: $imageUrl');
           final fileResponse = await http.get(Uri.parse(imageUrl));
 
           if (fileResponse.statusCode == 200) {
@@ -120,36 +161,43 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
 
               if (faces.isNotEmpty) {
                 final Face face = faces.first;
-                Rect faceRect = face.boundingBox;
+                final img.Image croppedMasterFace =
+                    _cropFaceWithPadding(masterImage, face.boundingBox);
 
-                // 🆕 PERBAIKAN UTAMA: Potong (Crop) area wajah master terlebih dahulu!
-                final img.Image croppedMasterFace = img.copyCrop(
-                  masterImage,
-                  x: faceRect.left.toInt().clamp(0, masterImage.width - 1),
-                  y: faceRect.top.toInt().clamp(0, masterImage.height - 1),
-                  width: faceRect.width.toInt().clamp(1, masterImage.width),
-                  height: faceRect.height.toInt().clamp(1, masterImage.height),
-                );
-
-                // Ekstrak matriks dari wajah yang SUDAH DI-CROP agar seimbang dengan live frame
                 final RecognitionEmbedding masterRecognition =
                     recognizer.recognize(
-                  croppedMasterFace, // 👈 Gunakan hasil crop di sini
+                  croppedMasterFace,
                   face.boundingBox,
                 );
 
                 if (masterRecognition.embedding.isNotEmpty) {
                   _serverMasterEmbedding = masterRecognition.embedding;
-                  print(
-                      '✅ Master Biometrik Akun Berhasil Di-generate Secara Seimbang di Memori.');
+                  _masterFaceErrorMessage = null;
+                } else {
+                  _masterFaceErrorMessage =
+                      'Gagal mengekstrak fitur biometrik dari foto terdaftar.';
                 }
+              } else {
+                _masterFaceErrorMessage =
+                    'Wajah tidak terdeteksi pada foto master server.';
               }
+            } else {
+              _masterFaceErrorMessage = 'Format foto master tidak valid.';
             }
+          } else {
+            _masterFaceErrorMessage =
+                'Gagal mengunduh foto master (Kode: ${fileResponse.statusCode}).';
           }
+        } else {
+          _masterFaceErrorMessage =
+              'Akun Anda belum memiliki foto wajah terdaftar pada cabang ini.';
         }
+      } else {
+        _masterFaceErrorMessage =
+            'Gagal memeriksa status biometrik (Kode: ${response.statusCode}).';
       }
     } catch (e) {
-      print('⚠️ Gagal memproses sinkronisasi wajah server secara lokal: $e');
+      _masterFaceErrorMessage = 'Gagal sinkronisasi data biometrik: $e';
     } finally {
       if (mounted) {
         setState(() {
@@ -160,12 +208,19 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   }
 
   void _takePicture(CameraImage cameraImage) async {
-    print(
-        '📸 _takePicture dipanggil dari kedipan sukses berkualitas kamera view');
     if (!mounted ||
         !_canProcess ||
         _isDialogShowing ||
         _isDownloadingMasterFace) return;
+
+    if (_serverMasterEmbedding == null) {
+      context.showError(
+        _masterFaceErrorMessage ??
+            'Data biometrik belum tersinkronisasi. Silakan muat ulang.',
+      );
+      _resetCameraViewManual();
+      return;
+    }
 
     setState(() {
       _canProcess = false;
@@ -174,9 +229,9 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
     });
 
     try {
-      final rawImage = convertNV21ToImage(cameraImage);
+      final rawImage = _convertCameraImageToRgb(cameraImage);
       if (rawImage == null) {
-        print('❌ Gagal mengonversi raw image ke objek gambar');
+        context.showError('Gagal membaca gambar dari kamera.');
         _resetCameraViewManual();
         return;
       }
@@ -187,51 +242,63 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
       );
 
       final inputImage = _inputImageFromCameraImage(cameraImage);
-      if (inputImage != null && _serverMasterEmbedding != null) {
-        final faces = await _faceDetector.processImage(inputImage);
+      if (inputImage == null) {
+        context.showError('Format citra kamera tidak valid.');
+        _resetCameraViewManual();
+        return;
+      }
 
-        if (faces.isNotEmpty) {
-          final Face face = faces.first;
-          Rect faceRect = face.boundingBox;
+      final faces = await _faceDetector.processImage(inputImage);
 
-          final img.Image croppedFace = img.copyCrop(
-            capturedImage!,
-            x: faceRect.left.toInt().clamp(0, capturedImage!.width - 1),
-            y: faceRect.top.toInt().clamp(0, capturedImage!.height - 1),
-            width: faceRect.width.toInt().clamp(1, capturedImage!.width),
-            height: faceRect.height.toInt().clamp(1, capturedImage!.height),
+      if (faces.isEmpty) {
+        context
+            .showError('Wajah tidak terdeteksi. Posisikan wajah Anda kembali.');
+        _resetCameraViewManual();
+        return;
+      }
+
+      final Face face = faces.first;
+      final img.Image croppedFace =
+          _cropFaceWithPadding(capturedImage!, face.boundingBox);
+
+      final RecognitionEmbedding currentFace = recognizer.recognize(
+        croppedFace,
+        face.boundingBox,
+      );
+
+      if (currentFace.embedding.isEmpty) {
+        context.showError('Gagal memproses fitur wajah saat ini.');
+        _resetCameraViewManual();
+        return;
+      }
+
+      // Hitung Normalized Euclidean Distance
+      final double distance = _calculateEuclideanDistance(
+        currentFace.embedding,
+        _serverMasterEmbedding!,
+      );
+      debugPrint('📏 Normalized Euclidean Distance: $distance');
+
+      // Nilai threshold ideal dan stabil (0.90)
+      const double threshold = 0.90;
+      if (distance > threshold) {
+        if (mounted) {
+          context.showError(
+            'Verifikasi Gagal: Wajah tidak cocok (Skor: ${distance.toStringAsFixed(2)})',
           );
-
-          final RecognitionEmbedding currentFace = recognizer.recognize(
-            croppedFace,
-            face.boundingBox,
-          );
-
-          double distance = 0.0;
-          for (int i = 0; i < currentFace.embedding.length; i++) {
-            double diff = currentFace.embedding[i] - _serverMasterEmbedding![i];
-            distance += diff * diff;
-          }
-          distance = sqrt(distance);
-          print('📏 Jarak Euclidean Perbandingan Wajah Lokal di HP: $distance');
-
-          if (distance > 1.0) {
-            print('❌ PROTEKSI AKTIF: Wajah tidak cocok dengan akun terdaftar!');
-            if (mounted) {
-              context.showError(
-                  'Verifikasi Gagal: Wajah Anda tidak cocok dengan pemilik terdaftar akun ini!');
-            }
-            _resetCameraViewManual();
-            return;
-          }
         }
+        _resetCameraViewManual();
+        return;
       }
 
       if (mounted) {
         _showSuccessDialog();
       }
     } catch (e) {
-      print('❌ Error saat memproses jepretan wajah: $e');
+      debugPrint('❌ Error validasi biometrik: $e');
+      if (mounted) {
+        context.showError('Terjadi kesalahan validasi: $e');
+      }
       _resetCameraViewManual();
     }
   }
@@ -250,7 +317,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   }
 
   void _showSuccessDialog() {
-    print('🎉 Menampilkan dialog review konfirmasi absensi');
     if (_isDialogShowing) return;
     setState(() {
       _isDialogShowing = true;
@@ -260,173 +326,181 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) =>
-          StatefulBuilder(builder: (context, setDialogState) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white,
-                    Colors.green.shade50.withOpacity(0.3),
-                  ],
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: SingleChildScrollView(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white,
+                      Colors.green.shade50.withOpacity(0.3),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.green.shade400, Colors.green.shade600],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle_rounded,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                  const SpaceHeight(16),
-                  Text(
-                    'Wajah Terverifikasi!',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1e3c72),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SpaceHeight(6),
-                  Text(
-                    'Siap mengirim berkas data absensi ke server',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SpaceHeight(16),
-                  Container(
-                    width: 180,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: LinearGradient(
-                        colors: [Colors.green.shade400, Colors.green.shade600],
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(3),
-                    child: Container(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(13),
-                        color: Colors.white,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: capturedImage != null
-                          ? Image.memory(
-                              Uint8List.fromList(img.encodeJpg(capturedImage!)),
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              color: Colors.grey[100],
-                              child: Icon(Icons.person,
-                                  size: 80, color: Colors.grey[400]),
-                            ),
-                    ),
-                  ),
-                  const SpaceHeight(16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.green.shade200,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          color: Colors.green.shade700,
-                          size: 18,
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.green.shade400,
+                            Colors.green.shade600
+                          ],
                         ),
-                        const SpaceWidth(8),
-                        Expanded(
-                          child: Text(
-                            widget.isCheckedIn
-                                ? 'Posisi wajah sudah pas. Tekan kirim untuk melanjutkan check in.'
-                                : 'Posisi wajah sudah pas. Tekan kirim untuk melanjutkan check out.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.green.shade800,
-                              height: 1.3,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                    ),
+                    const SpaceHeight(16),
+                    Text(
+                      'Wajah Terverifikasi!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1e3c72),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SpaceHeight(6),
+                    Text(
+                      'Siap mengirim berkas data absensi ke server',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SpaceHeight(16),
+                    Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.green.shade400,
+                            Colors.green.shade600
+                          ],
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(3),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(13),
+                          color: Colors.white,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: capturedImage != null
+                            ? Image.memory(
+                                Uint8List.fromList(
+                                    img.encodeJpg(capturedImage!)),
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                color: Colors.grey[100],
+                                child: Icon(Icons.person,
+                                    size: 80, color: Colors.grey[400]),
+                              ),
+                      ),
+                    ),
+                    const SpaceHeight(16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.green.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: Colors.green.shade700,
+                            size: 18,
+                          ),
+                          const SpaceWidth(8),
+                          Expanded(
+                            child: Text(
+                              widget.isCheckedIn
+                                  ? 'Posisi wajah sudah pas. Tekan kirim untuk melanjutkan check in.'
+                                  : 'Posisi wajah sudah pas. Tekan kirim untuk melanjutkan check out.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green.shade800,
+                                height: 1.3,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SpaceHeight(20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _isActionLoading
+                                ? null
+                                : () {
+                                    Navigator.pop(dialogContext);
+                                    setState(() {
+                                      _isDialogShowing = false;
+                                      _canProcess = true;
+                                    });
+                                    _resetCameraViewManual();
+                                  },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: Colors.grey.shade400),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Ulangi',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SpaceWidth(12),
+                        Expanded(
+                          child: _buildLocalSubmitButton(
+                              dialogContext, setDialogState),
                         ),
                       ],
                     ),
-                  ),
-                  const SpaceHeight(20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _isActionLoading
-                              ? null
-                              : () {
-                                  Navigator.pop(dialogContext);
-                                  setState(() {
-                                    _isDialogShowing = false;
-                                    _canProcess = true;
-                                  });
-                                  _resetCameraViewManual();
-                                },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.grey.shade400),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Ulangi',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SpaceWidth(12),
-                      Expanded(
-                        child: _buildLocalSubmitButton(
-                            dialogContext, setDialogState),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
@@ -464,7 +538,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
 
                   if (!mounted) return;
 
-                  // 🔥 KONDISI DINAMIS: Cek apakah absen datang (Check-In) atau pulang (Check-Out)
                   if (widget.isCheckedIn) {
                     context.read<CheckinAttendanceBloc>().add(
                           CheckinAttendanceEvent.checkin(
@@ -474,7 +547,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
                               idSchedule: widget.idSchedule),
                         );
                   } else {
-                    // 🔥 INTEGRASI BARU: Jalankan BLoc Checkout dengan parameter terupdate (double)
                     context.read<CheckoutAttendanceBloc>().add(
                           CheckoutAttendanceEvent.checkout(
                               latitude: widget.latitude ?? 0.0,
@@ -486,7 +558,7 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
 
                   Navigator.pop(dialogContext);
                 } catch (e) {
-                  print('❌ Gagal mengolah berkas citra absensi: $e');
+                  debugPrint('❌ Gagal mengolah berkas citra absensi: $e');
                   setDialogState(() {
                     _isActionLoading = false;
                   });
@@ -496,7 +568,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
                   context.showError('Gagal memproses file gambar absensi.');
                 }
               },
-        // ... properti style tombol Anda ke bawah tetap sama ...
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
@@ -546,7 +617,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   }
 
   void _showErrorDialog() {
-    print('⚠️ _showErrorDialog called');
     _canProcess = false;
 
     showDialog(
@@ -664,40 +734,78 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
     );
   }
 
-  img.Image? convertNV21ToImage(CameraImage cameraImage) {
+  img.Image? _convertCameraImageToRgb(CameraImage cameraImage) {
     try {
-      final width = cameraImage.width.toInt();
-      final height = cameraImage.height.toInt();
-      final yPlane = cameraImage.planes[0].bytes;
-      final uvPlane = cameraImage.planes[1].bytes;
-      final outImg = img.Image(height: height, width: width);
+      final width = cameraImage.width;
+      final height = cameraImage.height;
+      final outImg = img.Image(width: width, height: height);
 
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          final yIndex = y * width + x;
-          final uvIndex = ((y >> 1) * (width >> 1) + (x >> 1)) * 2;
+      if (cameraImage.format.group == ImageFormatGroup.nv21 ||
+          cameraImage.planes.length == 1) {
+        final nv21Bytes = cameraImage.planes[0].bytes;
+        final int frameSize = width * height;
 
-          if (yIndex >= yPlane.length || uvIndex + 1 >= uvPlane.length)
-            continue;
+        for (int j = 0; j < height; j++) {
+          for (int i = 0; i < width; i++) {
+            final int yIndex = j * width + i;
+            final int uvIndex = frameSize + (j >> 1) * width + (i & ~1);
 
-          final yValue = yPlane[yIndex];
-          final uValue = uvPlane[uvIndex];
-          final vValue = uvPlane[uvIndex + 1];
+            if (yIndex >= nv21Bytes.length || uvIndex + 1 >= nv21Bytes.length) {
+              continue;
+            }
 
-          int r = (yValue + 1.370705 * (vValue - 128)).toInt();
-          int g =
-              (yValue - 0.337633 * (uValue - 128) - 0.698001 * (vValue - 128))
-                  .toInt();
-          int b = (yValue + 1.732446 * (uValue - 128)).toInt();
+            final int y = nv21Bytes[yIndex] & 0xff;
+            final int v = (nv21Bytes[uvIndex] & 0xff) - 128;
+            final int u = (nv21Bytes[uvIndex + 1] & 0xff) - 128;
 
-          outImg.setPixelRgb(
-              x, y, r.clamp(0, 255), g.clamp(0, 255), b.clamp(0, 255));
+            int r = (y + (1.370705 * v)).round().clamp(0, 255);
+            int g = (y - (0.337633 * u) - (0.698001 * v)).round().clamp(0, 255);
+            int b = (y + (1.732446 * u)).round().clamp(0, 255);
+
+            outImg.setPixelRgb(i, j, r, g, b);
+          }
         }
+        return outImg;
       }
-      return outImg;
-    } catch (_) {
-      return null;
+
+      if (cameraImage.planes.length >= 3) {
+        final yPlane = cameraImage.planes[0].bytes;
+        final uPlane = cameraImage.planes[1].bytes;
+        final vPlane = cameraImage.planes[2].bytes;
+
+        final uvRowStride = cameraImage.planes[1].bytesPerRow;
+        final uvPixelStride = cameraImage.planes[1].bytesPerPixel ?? 1;
+
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            final yIndex = y * width + x;
+            final uvIndex = (y >> 1) * uvRowStride + (x >> 1) * uvPixelStride;
+
+            if (yIndex >= yPlane.length ||
+                uvIndex >= uPlane.length ||
+                uvIndex >= vPlane.length) {
+              continue;
+            }
+
+            final yValue = yPlane[yIndex] & 0xFF;
+            final uValue = (uPlane[uvIndex] & 0xFF) - 128;
+            final vValue = (vPlane[uvIndex] & 0xFF) - 128;
+
+            int r = (yValue + 1.402 * vValue).round().clamp(0, 255);
+            int g = (yValue - 0.344136 * uValue - 0.714136 * vValue)
+                .round()
+                .clamp(0, 255);
+            int b = (yValue + 1.772 * uValue).round().clamp(0, 255);
+
+            outImg.setPixelRgb(x, y, r, g, b);
+          }
+        }
+        return outImg;
+      }
+    } catch (e) {
+      debugPrint('❌ Error converting CameraImage to RGB: $e');
     }
+    return null;
   }
 
   InputImage? _inputImageFromCameraImage(CameraImage image) {
@@ -715,23 +823,30 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
 
       final width = image.width;
       final height = image.height;
-      final yPlane = image.planes[0].bytes;
-      final uPlane = image.planes[1].bytes;
-      final vPlane = image.planes[2].bytes;
 
-      final nv21 = Uint8List(width * height + (width * height ~/ 2));
-      nv21.setRange(0, width * height, yPlane);
+      Uint8List bytes;
+      if (image.planes.length == 1) {
+        bytes = image.planes[0].bytes;
+      } else {
+        final yPlane = image.planes[0].bytes;
+        final uPlane = image.planes[1].bytes;
+        final vPlane = image.planes[2].bytes;
 
-      int offset = width * height;
-      final chromaRowStride = image.planes[1].bytesPerRow;
-      final chromaPixelStride = image.planes[1].bytesPerPixel!;
+        final nv21 = Uint8List(width * height + (width * height ~/ 2));
+        nv21.setRange(0, width * height, yPlane);
 
-      for (int row = 0; row < height ~/ 2; row++) {
-        for (int col = 0; col < width ~/ 2; col++) {
-          final idx = row * chromaRowStride + col * chromaPixelStride;
-          nv21[offset++] = vPlane[idx];
-          nv21[offset++] = uPlane[idx];
+        int offset = width * height;
+        final chromaRowStride = image.planes[1].bytesPerRow;
+        final chromaPixelStride = image.planes[1].bytesPerPixel ?? 1;
+
+        for (int row = 0; row < height ~/ 2; row++) {
+          for (int col = 0; col < width ~/ 2; col++) {
+            final idx = row * chromaRowStride + col * chromaPixelStride;
+            nv21[offset++] = vPlane[idx];
+            nv21[offset++] = uPlane[idx];
+          }
         }
+        bytes = nv21;
       }
 
       final metadata = InputImageMetadata(
@@ -741,13 +856,12 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
         bytesPerRow: image.width,
       );
 
-      return InputImage.fromBytes(bytes: nv21, metadata: metadata);
+      return InputImage.fromBytes(bytes: bytes, metadata: metadata);
     } catch (_) {
       return null;
     }
   }
 
-  // 🆕 FUNGSI UTAMA YANG SEMPAT HILANG (Kini dikembalikan penuh)
   Future<void> _processImage(InputImage inputImage) async {
     if (!_canProcess || _isBusy) return;
     _isBusy = true;
@@ -755,9 +869,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
     try {
       if (!mounted) return;
 
-      setState(() {
-        _text = '';
-      });
       final faces = await _faceDetector.processImage(inputImage);
 
       if (!mounted) return;
@@ -780,7 +891,7 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
         setState(() {});
       }
     } catch (e) {
-      print("❌ Error saat proses image: $e");
+      debugPrint("❌ Error saat proses image: $e");
     } finally {
       _isBusy = false;
     }
@@ -790,7 +901,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
   Widget build(BuildContext context) {
     return MultiBlocListener(
       listeners: [
-        // 1. LISTENER UNTUK CHECK-IN (DATANG)
         BlocListener<CheckinAttendanceBloc, CheckinAttendanceState>(
           listener: (context, state) {
             state.maybeWhen(
@@ -812,7 +922,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
                   _isActionLoading = false;
                 });
 
-                // Pemicu refresh status tombol API tunggal harian
                 context
                     .read<IsCheckedinBloc>()
                     .add(const IsCheckedinEvent.isCheckedIn());
@@ -830,8 +939,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
             );
           },
         ),
-
-        // 2. LISTENER UNTUK CHECK-OUT (PULANG)
         BlocListener<CheckoutAttendanceBloc, CheckoutAttendanceState>(
           listener: (context, state) {
             state.maybeWhen(
@@ -853,7 +960,6 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
                   _isActionLoading = false;
                 });
 
-                // Pemicu refresh status tombol API tunggal harian
                 context
                     .read<IsCheckedinBloc>()
                     .add(const IsCheckedinEvent.isCheckedIn());
@@ -907,6 +1013,78 @@ class _FaceDetectorViewState extends State<FaceDetectorCheckinPage> {
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!_isDownloadingMasterFace && _serverMasterEmbedding == null)
+              Container(
+                color: Colors.black.withOpacity(0.92),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.redAccent,
+                        size: 64,
+                      ),
+                      const SpaceHeight(16),
+                      Text(
+                        'Sinkronisasi Wajah Gagal',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SpaceHeight(8),
+                      Text(
+                        _masterFaceErrorMessage ??
+                            'Data master wajah tidak ditemukan untuk cabang saat ini.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SpaceHeight(24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.white38),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Kembali',
+                              style: GoogleFonts.poppins(color: Colors.white),
+                            ),
+                          ),
+                          const SpaceWidth(12),
+                          ElevatedButton.icon(
+                            onPressed: _fetchAndPrepareMasterFace,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text(
+                              'Coba Lagi',
+                              style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

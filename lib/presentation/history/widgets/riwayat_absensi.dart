@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -11,21 +12,22 @@ class AttendanceHistoryCard extends StatelessWidget {
   final int? lateMinutes;
   final VoidCallback ontap;
 
-  const AttendanceHistoryCard(
-      {super.key,
-      required this.day,
-      required this.date,
-      required this.checkIn,
-      required this.checkOut,
-      required this.status,
-      this.lateMinutes,
-      required this.ontap});
+  const AttendanceHistoryCard({
+    super.key,
+    required this.day,
+    required this.date,
+    required this.checkIn,
+    required this.checkOut,
+    required this.status,
+    this.lateMinutes,
+    required this.ontap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final config = _statusConfig(status);
 
-    DateTime parsedDate = DateTime.parse(date);
+    DateTime parsedDate = DateTime.tryParse(date) ?? DateTime.now();
 
     String formatDay = DateFormat('EEEE', "id_ID").format(parsedDate);
     String formatDate = DateFormat('d MMMM yyyy', 'id_ID').format(parsedDate);
@@ -37,11 +39,12 @@ class AttendanceHistoryCard extends StatelessWidget {
 
     return InkWell(
       onTap: ontap,
+      borderRadius: BorderRadius.circular(14.r),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16.r),
           border: Border.all(
             color: const Color(0xFFE7ECF5),
           ),
@@ -49,8 +52,8 @@ class AttendanceHistoryCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 35,
-              height: 35,
+              width: 34.r,
+              height: 34.r,
               decoration: BoxDecoration(
                 color: config.backgroundColor,
                 shape: BoxShape.circle,
@@ -58,10 +61,10 @@ class AttendanceHistoryCard extends StatelessWidget {
               child: Icon(
                 config.icon,
                 color: config.color,
-                size: 22,
+                size: 20.r,
               ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 10.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,11 +72,14 @@ class AttendanceHistoryCard extends StatelessWidget {
                   Text(
                     '$formatDay, $formatDate',
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w600,
                       color: const Color(0xFF243778),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  SizedBox(height: 2.h),
                   Row(
                     children: [
                       Column(
@@ -82,32 +88,36 @@ class AttendanceHistoryCard extends StatelessWidget {
                           Text(
                             'Check In',
                             style: GoogleFonts.poppins(
-                              fontSize: 11,
+                              fontSize: 10.sp,
                               color: const Color(0xFF9AA3BD),
                             ),
                           ),
                           Text(
                             cleanCheckIn,
                             style: GoogleFonts.poppins(
-                                fontSize: 11, fontWeight: FontWeight.w600),
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: 14.w),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Check Out',
                             style: GoogleFonts.poppins(
-                              fontSize: 11,
+                              fontSize: 10.sp,
                               color: const Color(0xFF9AA3BD),
                             ),
                           ),
                           Text(
                             cleanCheckOut,
                             style: GoogleFonts.poppins(
-                                fontSize: 11, fontWeight: FontWeight.w600),
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -116,35 +126,39 @@ class AttendanceHistoryCard extends StatelessWidget {
                 ],
               ),
             ),
+            SizedBox(width: 8.w),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  config.label,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: config.color,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    config.label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w600,
+                      color: config.color,
+                    ),
                   ),
                 ),
                 if ((lateMinutes ?? 0) > 0)
                   Text(
                     '$lateMinutes mnt',
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey, // Beri warna merah agar kontras
+                      fontSize: 10.sp,
+                      color: Colors.grey,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
               ],
             ),
-            SizedBox(
-              width: 15,
-            ),
+            SizedBox(width: 6.w),
             Icon(
               Icons.arrow_forward_ios,
-              size: 18,
-            )
+              size: 14.r,
+              color: Colors.grey,
+            ),
           ],
         ),
       ),

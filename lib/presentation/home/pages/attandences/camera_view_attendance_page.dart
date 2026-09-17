@@ -1,13 +1,13 @@
 import 'dart:developer' as developer;
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image/image.dart' as img;
 
 import '../../../../core/core.dart';
 import '../../../../core/ml/recognition_embedding.dart';
@@ -56,7 +56,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
   late FaceDetector detector;
 
   bool _isProcessing = true;
-  bool _photoTakenSuccess = false; // Penanda kunci sukses diambil
+  bool _photoTakenSuccess = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -69,12 +69,14 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     recognizer = Recognizer();
+
+    // Opsi ML Kit dioptimalkan agar tidak mengeluarkan log debug berlebihan
     detector = FaceDetector(
       options: FaceDetectorOptions(
         performanceMode: FaceDetectorMode.fast,
         enableClassification: true,
-        enableLandmarks: true,
-        enableContours: true,
+        enableLandmarks: false,
+        enableContours: false,
         enableTracking: true,
       ),
     );
@@ -344,18 +346,13 @@ class _CameraViewState extends State<CameraViewAttendancePage>
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    // 🆕 PERBAIKAN UTAMA: Penerapan 3 Kondisi pada Ikon secara sinkron dan adaptif
                     _photoTakenSuccess
-                        ? Icons
-                            .check_circle_rounded // Tahap 3: Sukses jepret -> Centang
+                        ? Icons.check_circle_rounded
                         : _isWaitingForBlink
                             ? (_didCloseEyes
-                                ? Icons
-                                    .visibility_off_rounded // Tahap 2a: Sedang kedip -> Mata off
-                                : Icons
-                                    .visibility_rounded) // Tahap 2b: Siap kedip -> Mata on
-                            : Icons
-                                .no_photography_rounded, // Tahap 1: Belum Pas -> Tanda silang kamera/posisi
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded)
+                            : Icons.no_photography_rounded,
                     color: Colors.white,
                     size: 32,
                   ),
@@ -463,7 +460,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
   }
 
   void _processCameraImage(CameraImage image) async {
-    if (!_isProcessing) return;
+    if (!_isProcessing || _photoTakenSuccess) return;
 
     frame = image;
     final inputImage = _inputImageFromCameraImage(image);
@@ -473,7 +470,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
     try {
       final faces = await detector.processImage(inputImage);
-      if (_isProcessing) {
+      if (_isProcessing && mounted) {
         _processFaceDetection(faces, inputImage);
       }
     } catch (e) {
@@ -481,15 +478,17 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     }
   }
 
-  void _processFaceDetection(List<Face> faces, InputImage inputImage) {
-    if (!_isProcessing) return;
+  void _processFaceDetection(List<Face> faces, InputImage inputImage) async {
+    if (!_isProcessing || !mounted || _photoTakenSuccess) return;
 
     if (faces.isEmpty) {
-      setState(() {
-        _isWaitingForBlink = false;
-        _didCloseEyes = false;
-        _blinkInstruction = 'Posisikan wajah Anda di dalam oval';
-      });
+      if (_isWaitingForBlink || _didCloseEyes) {
+        setState(() {
+          _isWaitingForBlink = false;
+          _didCloseEyes = false;
+          _blinkInstruction = 'Posisikan wajah Anda di dalam oval';
+        });
+      }
       return;
     }
 
@@ -526,25 +525,31 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
     if ((faceCenterX - idealCenterX).abs() > horizontalTolerance ||
         (faceCenterY - idealCenterY).abs() > verticalTolerance) {
-      setState(() {
-        _isWaitingForBlink = false;
-        _blinkInstruction = 'Wajah harus tepat di tengah';
-      });
+      if (_blinkInstruction != 'Wajah harus tepat di tengah') {
+        setState(() {
+          _isWaitingForBlink = false;
+          _blinkInstruction = 'Wajah harus tepat di tengah';
+        });
+      }
       return;
     }
 
     final double faceHeightPercentage = rect.height / imageHeight;
     if (faceHeightPercentage < 0.25) {
-      setState(() {
-        _isWaitingForBlink = false;
-        _blinkInstruction = 'Silakan mendekat ke kamera';
-      });
+      if (_blinkInstruction != 'Silakan mendekat ke kamera') {
+        setState(() {
+          _isWaitingForBlink = false;
+          _blinkInstruction = 'Silakan mendekat ke kamera';
+        });
+      }
       return;
     } else if (faceHeightPercentage > 0.80) {
-      setState(() {
-        _isWaitingForBlink = false;
-        _blinkInstruction = 'Terlalu dekat, silakan menjauh';
-      });
+      if (_blinkInstruction != 'Terlalu dekat, silakan menjauh') {
+        setState(() {
+          _isWaitingForBlink = false;
+          _blinkInstruction = 'Terlalu dekat, silakan menjauh';
+        });
+      }
       return;
     }
 
@@ -561,19 +566,42 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
     if (leftEyeOpen < blinkThreshold && rightEyeOpen < blinkThreshold) {
       if (!_didCloseEyes) {
-        setState(() {
-          _didCloseEyes = true;
-          _blinkInstruction = 'Mata tertutup... Buka mata Anda';
-        });
+        _didCloseEyes = true;
+        if (mounted) {
+          setState(() {
+            _blinkInstruction = 'Mata tertutup... Buka mata Anda';
+          });
+        }
       }
-    } else if (_didCloseEyes && leftEyeOpen > 0.70 && rightEyeOpen > 0.70) {
-      if (frame != null) {
+    } else if (_didCloseEyes && leftEyeOpen > 0.65 && rightEyeOpen > 0.65) {
+      if (frame != null && !_photoTakenSuccess) {
+        _photoTakenSuccess = true;
         _isProcessing = false;
-        setState(() {
-          _photoTakenSuccess = true;
-          _blinkInstruction = 'Foto berhasil diambil!';
-        });
-        widget.onTakePicture(frame!);
+
+        if (mounted) {
+          setState(() {
+            _blinkInstruction = 'Foto berhasil diambil!';
+          });
+        }
+
+        // Hentikan stream secara rapi agar tidak terjadi crash pipeline
+        try {
+          if (_controller != null && _controller!.value.isStreamingImages) {
+            await _controller!.stopImageStream();
+          }
+        } catch (e) {
+          developer.log('Error stopping stream: $e');
+        }
+
+        if (mounted && frame != null) {
+          try {
+            widget.onTakePicture(frame!);
+          } catch (e) {
+            developer.log('❌ Error pada callback onTakePicture: $e');
+            _photoTakenSuccess = false;
+            _isProcessing = true;
+          }
+        }
       }
     }
   }
@@ -613,7 +641,12 @@ class _CameraViewState extends State<CameraViewAttendancePage>
     return InputImage.fromBytes(bytes: bytes, metadata: metadata);
   }
 
+  /// Memproses penanganan fleksibel untuk format NV21 (1-plane) dan YUV420 (3-plane)
   Uint8List _yuv420ToNv21(CameraImage image) {
+    if (image.planes.length == 1) {
+      return image.planes[0].bytes;
+    }
+
     final width = image.width;
     final height = image.height;
 
@@ -626,7 +659,7 @@ class _CameraViewState extends State<CameraViewAttendancePage>
 
     int offset = width * height;
     final chromaRowStride = image.planes[1].bytesPerRow;
-    final chromaPixelStride = image.planes[1].bytesPerPixel!;
+    final chromaPixelStride = image.planes[1].bytesPerPixel ?? 1;
 
     for (int row = 0; row < height ~/ 2; row++) {
       for (int col = 0; col < width ~/ 2; col++) {

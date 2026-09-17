@@ -30,6 +30,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
 
   @override
   void initState() {
+    super.initState();
     emailController = TextEditingController();
     passwordController = TextEditingController();
 
@@ -72,26 +73,17 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       curve: Curves.elasticOut,
     ));
 
-    // Start animations
     Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        _fadeController.forward();
-      }
+      if (mounted) _fadeController.forward();
     });
 
     Future.delayed(const Duration(milliseconds: 700), () {
-      if (mounted) {
-        _slideController.forward();
-      }
+      if (mounted) _slideController.forward();
     });
 
     Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        _buttonController.forward();
-      }
+      if (mounted) _buttonController.forward();
     });
-
-    super.initState();
   }
 
   @override
@@ -111,300 +103,385 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       body: BlocListener<LoginBloc, LoginState>(
         listener: (context, state) {
           state.maybeWhen(
-              loading: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xff0a49b7)),
-                    ),
+            loading: () {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Color(0xff0a49b7)),
                   ),
-                );
-              },
-              error: (errorMessage) {
-                Navigator.of(context, rootNavigator: true).pop();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            errorMessage,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
+                ),
+              );
+            },
+            error: (errorMessage) {
+              Navigator.of(context, rootNavigator: true).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          errorMessage,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ],
-                    ),
-                    backgroundColor: Colors.red.shade600,
-                    behavior: SnackBarBehavior.floating,
-                    margin: const EdgeInsets.all(16),
-                    elevation: 8,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    duration: const Duration(seconds: 3),
+                      ),
+                    ],
                   ),
-                );
-              },
-              // PERBAIKAN: Memaksa penyimpanan data ke lokal secara manual dan asinkron
-              success: (data) async {
-                Navigator.of(context, rootNavigator: true).pop();
-
-                // Menyimpan data login secara permanen ke Shared Preferences
-                await AuthLocalDatasource().saveAuthData(data);
-
-                if (context.mounted) {
-                  context.pushReplacement(MainPage());
-                }
-              },
-              orElse: () {});
+                  backgroundColor: Colors.red.shade600,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            },
+            success: (data) async {
+              Navigator.of(context, rootNavigator: true).pop();
+              await AuthLocalDatasource().saveAuthData(data);
+              if (context.mounted) {
+                context.pushReplacement(const MainPage());
+              }
+            },
+            orElse: () {},
+          );
         },
-        child: Stack(
-          children: [
-            FadeTransition(opacity: _fadeAnimation, child: _buildHeader()),
-            // Login Card
-            Align(
-              alignment: AlignmentGeometry.bottomCenter,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(28, 28, 28, 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(24),
-                          topRight: Radius.circular(24)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: Offset(0, 10),
-                        ),
-                      ],
+        child: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Stack(
+                children: [
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: _buildHeader(),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _buildLoginCard(),
+                      ),
                     ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(40, 30, 40, 30),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: -215,
+            top: -215,
+            child: Container(
+              width: 390,
+              height: 390,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -180,
+            top: -180,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.05),
+                  width: 30,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -70,
+            top: 235,
+            child: Container(
+              width: 450,
+              height: 450,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -35,
+            top: 270,
+            child: Container(
+              width: 380,
+              height: 380,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.05),
+                  width: 30,
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Column(
+              children: [
+                Image.asset(
+                  "assets/images/logo.png",
+                  width: 250,
+                  height: 150,
+                  fit: BoxFit.contain,
+                ),
+                Text(
+                  'MULTI GRAHA',
+                  style: GoogleFonts.poppins(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  'RADHIKA',
+                  style: GoogleFonts.poppins(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SpaceHeight(5),
+                Text(
+                  'Smart Digital Solution Provider',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white.withOpacity(0.8),
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 18, 28, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Welcome Back',
+              style: GoogleFonts.poppins(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.black,
+              ),
+            ),
+            const SpaceHeight(8),
+            Text(
+              'Sign in to continue to your account',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: AppColors.grey,
+              ),
+            ),
+            const SpaceHeight(20),
+            Text(
+              'Email Address',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black,
+              ),
+            ),
+            const SpaceHeight(8),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0x78F5F5F5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xC0D0D0D0),
+                  width: 1,
+                ),
+              ),
+              child: CustomTextField(
+                controller: emailController,
+                label: 'Enter your email',
+                showLabel: false,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: SvgPicture.asset(
+                    Assets.icons.email.path,
+                    height: 20,
+                    width: 20,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF0A49B7),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SpaceHeight(16),
+            Text(
+              'Password',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.black,
+              ),
+            ),
+            const SpaceHeight(8),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0x78F5F5F5),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xC0D0D0D0),
+                  width: 1,
+                ),
+              ),
+              child: CustomTextField(
+                controller: passwordController,
+                label: 'Enter your password',
+                showLabel: false,
+                obscureText: !isShowPassword,
+                textInputAction: TextInputAction.done,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: SvgPicture.asset(
+                    Assets.icons.password.path,
+                    height: 20,
+                    width: 20,
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFF0A49B7),
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    isShowPassword
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: AppColors.grey,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      isShowPassword = !isShowPassword;
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SpaceHeight(20),
+            ScaleTransition(
+              scale: _buttonAnimation,
+              child: Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A49B7),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1e3c72).withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () async {
+                      final email = emailController.text.trim();
+                      final password = passwordController.text.trim();
+
+                      if (email.isNotEmpty && password.isNotEmpty) {
+                        context
+                            .read<LoginBloc>()
+                            .add(LoginEvent.login(email, password));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Email dan Password wajib diisi!'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    },
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          const Icon(
+                            Icons.login_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SpaceWidth(8),
                           Text(
-                            'Welcome Back',
+                            'Sign In',
                             style: GoogleFonts.poppins(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.black,
-                            ),
-                          ),
-                          const SpaceHeight(8),
-                          Text(
-                            'Sign in to continue to your account',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.grey,
-                            ),
-                          ),
-
-                          const SpaceHeight(25),
-
-                          // Email Field
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Email Address',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                              const SpaceHeight(8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0x78F5F5F5),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: const Color(0xC0D0D0D0),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: CustomTextField(
-                                  controller: emailController,
-                                  label: 'Enter your email',
-                                  showLabel: false,
-                                  keyboardType: TextInputType.emailAddress,
-                                  textInputAction: TextInputAction.next,
-                                  prefixIcon: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: SvgPicture.asset(
-                                      Assets.icons.email.path,
-                                      height: 20,
-                                      width: 20,
-                                      colorFilter: const ColorFilter.mode(
-                                        Color(0xFF0A49B7),
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SpaceHeight(16),
-
-                          // Password Field
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Password',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.black,
-                                ),
-                              ),
-                              const SpaceHeight(8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: const Color(0x78F5F5F5),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: const Color(0xC0D0D0D0),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: CustomTextField(
-                                  controller: passwordController,
-                                  label: 'Enter your password',
-                                  showLabel: false,
-                                  obscureText: !isShowPassword,
-                                  textInputAction: TextInputAction.done,
-                                  prefixIcon: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: SvgPicture.asset(
-                                      Assets.icons.password.path,
-                                      height: 20,
-                                      width: 20,
-                                      colorFilter: const ColorFilter.mode(
-                                        Color(0xFF0A49B7),
-                                        BlendMode.srcIn,
-                                      ),
-                                    ),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      isShowPassword
-                                          ? Icons.visibility_off_rounded
-                                          : Icons.visibility_rounded,
-                                      color: AppColors.grey,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        isShowPassword = !isShowPassword;
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SpaceHeight(35),
-
-                          ScaleTransition(
-                            scale: _buttonAnimation,
-                            child: Container(
-                              width: double.infinity,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0A49B7),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF1e3c72)
-                                        .withOpacity(0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () async {
-                                    final email = emailController.text.trim();
-                                    final password =
-                                        passwordController.text.trim();
-
-                                    if (email.isNotEmpty &&
-                                        password.isNotEmpty) {
-                                      context.read<LoginBloc>().add(
-                                          LoginEvent.login(email, password));
-                                    } else {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                        content: Text(
-                                            'Email dan Password wajib diisi!'),
-                                        backgroundColor: Colors.orange,
-                                      ));
-                                    }
-                                  },
-                                  child: Center(
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.login_rounded,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SpaceWidth(8),
-                                        Text(
-                                          'Sign In',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 35,
-                          ),
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Center(
-                              child: Text(
-                                '© 2026 MGR. All rights reserved.',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.black,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                         ],
@@ -414,117 +491,24 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            FadeTransition(
+              opacity: _fadeAnimation,
+              child: Center(
+                child: Text(
+                  '© 2026 MGR. All rights reserved.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
-}
-
-Widget _buildHeader() {
-  return Container(
-    width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(40, 30, 40, 95),
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned(
-          left: -180,
-          top: -180,
-          child: Container(
-            width: 380,
-            height: 380,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.06),
-            ),
-          ),
-        ),
-        Positioned(
-          left: -130,
-          top: -130,
-          child: Container(
-            width: 280,
-            height: 280,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withOpacity(0.05),
-                width: 30,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -60,
-          top: 265,
-          child: Container(
-            width: 450,
-            height: 450,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.06),
-            ),
-          ),
-        ),
-        Positioned(
-          right: -26,
-          top: 300,
-          child: Container(
-            width: 380,
-            height: 380,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withOpacity(0.05),
-                width: 30,
-              ),
-            ),
-          ),
-        ),
-        Center(
-          child: Column(
-            children: [
-              Image.asset(
-                "assets/images/logo.png",
-                width: 250,
-                height: 200,
-              ),
-              Text(
-                'MULTI GRAHA',
-                style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                'RADHIKA',
-                style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SpaceHeight(5),
-              Text(
-                'Smart Digital Solution Provider',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.white.withOpacity(0.8),
-                  letterSpacing: 0.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
 }

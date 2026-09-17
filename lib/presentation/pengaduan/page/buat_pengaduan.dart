@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/Provider/pengaduan_provider.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/bloc/kategoriOptions.dart';
@@ -39,6 +40,8 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PengaduanProvider>();
+    final size = MediaQuery.of(context).size;
+    final bool isTablet = size.width >= 600;
 
     return BlocListener<PengaduanBloc, PengaduanState>(
       listenWhen: (previous, current) =>
@@ -47,12 +50,11 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
         if (state is StorePengaduanSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(state.message, style: TextStyle(fontSize: 12.sp)),
               backgroundColor: Colors.green,
             ),
           );
 
-          // Bentuk objek model pengaduan lokal
           PengaduanModel pengaduan = PengaduanModel(
             kodePengaduan: state.kodePengaduan.isNotEmpty
                 ? state.kodePengaduan
@@ -67,25 +69,22 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
             tanggalPengaduan: DateTime.now(),
           );
 
-          // Pindah ke halaman sukses pengaduan dengan melempar data LOKAL 'pengaduan'
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => PengaduanBerhasil(
-                pengaduanData:
-                    pengaduan, // <-- DIUBAH DI SINI (Bukan pakai state.response lagi)
+                pengaduanData: pengaduan,
               ),
             ),
           );
 
-          // Reset form ditaruh setelah navigasi agar inputan tidak hilang mendahului proses penciptaan object
           provider.resetFrom();
         }
 
         if (state is PengaduanFailure) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(state.message),
+              content: Text(state.message, style: TextStyle(fontSize: 12.sp)),
               backgroundColor: Colors.red,
             ),
           );
@@ -94,7 +93,6 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
       child: Scaffold(
         appBar: AppBar(
           elevation: 0,
-          toolbarHeight: 70,
           automaticallyImplyLeading: false,
           backgroundColor: const Color(0xFF0A49B7),
           centerTitle: true,
@@ -102,7 +100,7 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
             "Buat Pengaduan",
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -111,173 +109,184 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
               context.read<PengaduanProvider>().resetFrom();
               Navigator.pop(context);
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.keyboard_arrow_left,
-              size: 27,
+              size: 26.r,
               color: Colors.white,
             ),
           ),
         ),
         backgroundColor: Colors.white,
         body: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 25, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  BlocBuilder<PengaduanBloc, PengaduanState>(
-                    buildWhen: (previous, current) =>
-                        current is GetProductsSuccess ||
-                        current is GetProductsLoading,
-                    builder: (context, state) {
-                      List<DropdownMenuItem<String>> dropdownItems = [];
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 650),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  isTablet ? 18.w : 14.w,
+                  18.h,
+                  isTablet ? 18.w : 14.w,
+                  24.h,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BlocBuilder<PengaduanBloc, PengaduanState>(
+                      buildWhen: (previous, current) =>
+                          current is GetProductsSuccess ||
+                          current is GetProductsLoading,
+                      builder: (context, state) {
+                        List<DropdownMenuItem<String>> dropdownItems = [];
 
-                      final bool isDropdownLoading =
-                          state is GetProductsLoading;
+                        final bool isDropdownLoading =
+                            state is GetProductsLoading;
 
-                      if (state is GetProductsSuccess) {
-                        dropdownItems = state.products.map((item) {
-                          return DropdownMenuItem<String>(
-                            value: item.idProduct,
-                            child: Text(item.nameProduct ?? ''),
-                          );
-                        }).toList();
-                      }
+                        if (state is GetProductsSuccess) {
+                          dropdownItems = state.products.map((item) {
+                            return DropdownMenuItem<String>(
+                              value: item.idProduct,
+                              child: Text(
+                                item.nameProduct ?? '',
+                                style: TextStyle(fontSize: 12.5.sp),
+                              ),
+                            );
+                          }).toList();
+                        }
 
-                      return _tempatKaryawan(
-                        selectedValue: provider.selectedArea,
-                        items: dropdownItems,
-                        isLoading: isDropdownLoading,
-                        onChanged: (newValue) {
-                          provider.setSelectedArea(newValue);
-                        },
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Icon(Icons.image_outlined,
-                          color: Color(0xFF0A49B7)),
-                      const SizedBox(width: 10),
-                      Text(
-                        "Lampiran Gambar",
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  provider.uploadMedia.isEmpty
-                      ? _buildEmptyUpload(context)
-                      : _buildMediaGrid(context, provider),
-                  const SizedBox(height: 12),
-                  _kategoriLaporan(
-                    selectedValue: provider.selectedKategori,
-                    onChanged: (newValue) {
-                      provider.setSelectedKategori(newValue);
-                    },
-                  ),
-                  if (provider.selectedKategori == '4') ...[
-                    const SizedBox(height: 16),
+                        return _tempatKaryawan(
+                          selectedValue: provider.selectedArea,
+                          items: dropdownItems,
+                          isLoading: isDropdownLoading,
+                          onChanged: (newValue) {
+                            provider.setSelectedArea(newValue);
+                          },
+                        );
+                      },
+                    ),
+                    SizedBox(height: 16.h),
                     Row(
                       children: [
-                        const Icon(Icons.edit_note, color: Color(0xFF0A49B7)),
-                        const SizedBox(width: 10),
+                        Icon(Icons.image_outlined,
+                            color: const Color(0xFF0A49B7), size: 18.r),
+                        SizedBox(width: 8.w),
                         Text(
-                          "Kategori Lainnya (Isi Manual)",
+                          "Lampiran Gambar",
                           style: GoogleFonts.poppins(
-                            fontSize: 14,
+                            fontSize: 12.5.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: provider.kategoriLainnyaController,
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, color: Colors.black),
-                      decoration: InputDecoration(
-                        hintText:
-                            "Ketik kategori atau detail pengaduan di sini...",
-                        hintStyle: GoogleFonts.poppins(
-                            color: Colors.grey, fontSize: 14),
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 12),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: Colors.grey.shade300, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(
-                              color: Color(0xFF0A49B7), width: 1.5),
+                    SizedBox(height: 8.h),
+                    provider.uploadMedia.isEmpty
+                        ? _buildEmptyUpload(context)
+                        : _buildMediaGrid(context, provider, isTablet),
+                    SizedBox(height: 14.h),
+                    _kategoriLaporan(
+                      selectedValue: provider.selectedKategori,
+                      onChanged: (newValue) {
+                        provider.setSelectedKategori(newValue);
+                      },
+                    ),
+                    if (provider.selectedKategori == '4') ...[
+                      SizedBox(height: 14.h),
+                      Row(
+                        children: [
+                          Icon(Icons.edit_note,
+                              color: const Color(0xFF0A49B7), size: 18.r),
+                          SizedBox(width: 8.w),
+                          Text(
+                            "Kategori Lainnya (Isi Manual)",
+                            style: GoogleFonts.poppins(
+                              fontSize: 12.5.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8.h),
+                      TextFormField(
+                        controller: provider.kategoriLainnyaController,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12.sp, color: Colors.black),
+                        decoration: InputDecoration(
+                          hintText:
+                              "Ketik kategori atau detail pengaduan di sini...",
+                          hintStyle: GoogleFonts.poppins(
+                              color: Colors.grey, fontSize: 11.5.sp),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          contentPadding: EdgeInsets.symmetric(
+                              vertical: 12.h, horizontal: 12.w),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: BorderSide(
+                                color: Colors.grey.shade300, width: 1),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                                color: Color(0xFF0A49B7), width: 1.5),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _judulPengaduan(provider),
-                  const SizedBox(height: 16),
-                  _isiPengaduan(provider),
-                  const SizedBox(height: 16),
-                  BlocBuilder<PengaduanBloc, PengaduanState>(
-                    builder: (context, state) {
-                      bool isSubmitting = state is StorePengaduanLoading;
+                    ],
+                    SizedBox(height: 14.h),
+                    _judulPengaduan(provider),
+                    SizedBox(height: 14.h),
+                    _isiPengaduan(provider),
+                    SizedBox(height: 20.h),
+                    BlocBuilder<PengaduanBloc, PengaduanState>(
+                      builder: (context, state) {
+                        bool isSubmitting = state is StorePengaduanLoading;
 
-                      return InkWell(
-                        onTap: provider.isFormValid() && !isSubmitting
-                            ? () {
-                                XFile? logoFile;
+                        return InkWell(
+                          onTap: provider.isFormValid() && !isSubmitting
+                              ? () {
+                                  XFile? logoFile;
 
-                                if (provider.uploadMedia.isNotEmpty) {
-                                  logoFile = XFile(
-                                    provider.uploadMedia.first,
-                                  );
-                                }
-
-                                context.read<PengaduanBloc>().add(
-                                      StorePengaduanEvent(
-                                        title: provider
-                                            .judulPengaduanController.text,
-                                        text: provider
-                                            .isiPengaduanController.text,
-                                        kategori: provider.selectedKategori!,
-                                        kategoriLainnya:
-                                            provider.selectedKategori == '4'
-                                                ? provider
-                                                    .kategoriLainnyaController
-                                                    .text
-                                                : null,
-                                        idProduct: provider.selectedArea!,
-                                        logoFile: logoFile,
-                                      ),
+                                  if (provider.uploadMedia.isNotEmpty) {
+                                    logoFile = XFile(
+                                      provider.uploadMedia.first,
                                     );
-                              }
-                            : null,
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: provider.isFormValid() && !isSubmitting
-                                ? const Color(0xff0a49b7)
-                                : Colors.grey,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
+                                  }
+
+                                  context.read<PengaduanBloc>().add(
+                                        StorePengaduanEvent(
+                                          title: provider
+                                              .judulPengaduanController.text,
+                                          text: provider
+                                              .isiPengaduanController.text,
+                                          kategori: provider.selectedKategori!,
+                                          kategoriLainnya:
+                                              provider.selectedKategori == '4'
+                                                  ? provider
+                                                      .kategoriLainnyaController
+                                                      .text
+                                                  : null,
+                                          idProduct: provider.selectedArea!,
+                                          logoFile: logoFile,
+                                        ),
+                                      );
+                                }
+                              : null,
+                          borderRadius: BorderRadius.circular(10.r),
+                          child: Container(
+                            width: double.infinity,
+                            height: 48.h,
+                            decoration: BoxDecoration(
+                              color: provider.isFormValid() && !isSubmitting
+                                  ? const Color(0xff0a49b7)
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
                             child: Center(
                               child: isSubmitting
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
+                                  ? SizedBox(
+                                      width: 18.r,
+                                      height: 18.r,
+                                      child: const CircularProgressIndicator(
                                         color: Colors.white,
                                         strokeWidth: 2,
                                       ),
@@ -285,19 +294,21 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
                                   : Text(
                                       "Kirim Pengaduan",
                                       style: GoogleFonts.poppins(
+                                        fontSize: 13.5.sp,
                                         color: provider.isFormValid()
                                             ? Colors.white
-                                            : Colors.black,
+                                            : Colors.black54,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                        );
+                      },
+                    ),
+                    SizedBox(height: 10.h),
+                  ],
+                ),
               ),
             ),
           ),
@@ -317,16 +328,16 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
       children: [
         Row(
           children: [
-            const Icon(Icons.apartment, color: Color(0xFF0A49B7)),
-            const SizedBox(width: 10),
+            Icon(Icons.apartment, color: const Color(0xFF0A49B7), size: 18.r),
+            SizedBox(width: 8.w),
             Text(
               "Tempat",
               style: GoogleFonts.poppins(
-                  fontSize: 14, fontWeight: FontWeight.w500),
+                  fontSize: 12.5.sp, fontWeight: FontWeight.w500),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 8.h),
         Stack(
           alignment: Alignment.centerRight,
           children: [
@@ -335,13 +346,13 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
                 filled: true,
                 fillColor: Colors.grey.shade200,
                 contentPadding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                    EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   borderSide:
                       const BorderSide(color: Colors.black87, width: 1.5),
                 ),
@@ -349,21 +360,20 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
               hint: Text(
                 isLoading ? 'Memuat data area...' : 'Pilih Area',
                 style: GoogleFonts.poppins(
-                    fontSize: 15,
+                    fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
                     color: Colors.black),
               ),
               iconStyleData: IconStyleData(
                 icon: isLoading
                     ? const SizedBox.shrink()
-                    : const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: Colors.black87),
-                iconSize: 26,
+                    : Icon(Icons.keyboard_arrow_down_rounded,
+                        color: Colors.black87, size: 22.r),
               ),
               dropdownStyleData: DropdownStyleData(
-                maxHeight: 155,
+                maxHeight: 180.h,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(14.r),
                   color: Colors.white,
                 ),
                 elevation: 4,
@@ -373,12 +383,12 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
               onChanged: isLoading ? null : onChanged,
             ),
             if (isLoading)
-              const Positioned(
-                right: 16,
+              Positioned(
+                right: 14.w,
                 child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
+                  width: 16.r,
+                  height: 16.r,
+                  child: const CircularProgressIndicator(
                       strokeWidth: 2, color: Color(0xFF0A49B7)),
                 ),
               )
@@ -397,45 +407,46 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
       children: [
         Row(
           children: [
-            const Icon(Icons.category, color: Color(0xFF0A49B7)),
-            const SizedBox(width: 10),
+            Icon(Icons.category, color: const Color(0xFF0A49B7), size: 18.r),
+            SizedBox(width: 8.w),
             Text(
               "Kategori",
               style: GoogleFonts.poppins(
-                  fontSize: 14, fontWeight: FontWeight.w500),
+                  fontSize: 12.5.sp, fontWeight: FontWeight.w500),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 8.h),
         DropdownButtonFormField2<String>(
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.grey.shade200,
             contentPadding:
-                const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                EdgeInsets.symmetric(vertical: 10.h, horizontal: 12.w),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
               borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
               borderSide: const BorderSide(color: Colors.black87, width: 1.5),
             ),
           ),
           hint: Text(
             'Pilih Kategori',
             style: GoogleFonts.poppins(
-                fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black),
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.black),
           ),
-          iconStyleData: const IconStyleData(
-            icon:
-                Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black87),
-            iconSize: 26,
+          iconStyleData: IconStyleData(
+            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                color: Colors.black87, size: 22.r),
           ),
           dropdownStyleData: DropdownStyleData(
-            maxHeight: 155,
+            maxHeight: 180.h,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(14.r),
               color: Colors.white,
             ),
             elevation: 4,
@@ -444,7 +455,10 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
           items: kategoriOptions.map((item) {
             return DropdownMenuItem<String>(
               value: item.value,
-              child: Text(item.title),
+              child: Text(
+                item.title,
+                style: TextStyle(fontSize: 12.5.sp),
+              ),
             );
           }).toList(),
           onChanged: onChanged,
@@ -457,34 +471,34 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
     return Column(children: [
       Row(
         children: [
-          const Icon(Icons.local_offer, size: 20, color: Color(0xFF0A49B7)),
-          const SizedBox(width: 10),
+          Icon(Icons.local_offer, size: 18.r, color: const Color(0xFF0A49B7)),
+          SizedBox(width: 8.w),
           Text(
             "JUDUL PENGADUAN",
             style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 11.5.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade700),
           ),
         ],
       ),
-      const SizedBox(height: 10),
+      SizedBox(height: 8.h),
       TextFormField(
         controller: provider.judulPengaduanController,
-        style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
+        style: GoogleFonts.poppins(fontSize: 12.sp, color: Colors.black),
         decoration: InputDecoration(
           hintText: "Tuliskan judul yang singkat dan jelas..",
-          hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
+          hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: 11.5.sp),
           filled: true,
           fillColor: Colors.grey.shade100,
           contentPadding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+              EdgeInsets.symmetric(vertical: 12.h, horizontal: 12.w),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
             borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
             borderSide: const BorderSide(color: Color(0xFF0A49B7), width: 1.5),
           ),
         ),
@@ -496,37 +510,36 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
     return Column(children: [
       Row(
         children: [
-          const Icon(Icons.local_offer, size: 20, color: Color(0xFF0A49B7)),
-          const SizedBox(width: 10),
+          Icon(Icons.local_offer, size: 18.r, color: const Color(0xFF0A49B7)),
+          SizedBox(width: 8.w),
           Text(
             "ISI PENGADUAN",
             style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 11.5.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey.shade700),
           ),
         ],
       ),
-      const SizedBox(height: 10),
+      SizedBox(height: 8.h),
       TextFormField(
         controller: provider.isiPengaduanController,
-        maxLines: 6,
+        maxLines: 5,
         maxLength: 1000,
-        style: GoogleFonts.poppins(fontSize: 14, color: Colors.black),
+        style: GoogleFonts.poppins(fontSize: 12.sp, color: Colors.black),
         decoration: InputDecoration(
           hintText:
               "Jelaskan pengaduan anda secara lengkap dan detail. sertakan informasi seperti waktu kejadian, lokasi, pihak terlibat, dan hal-hal yang relevan...",
-          hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: 14),
+          hintStyle: GoogleFonts.poppins(color: Colors.grey, fontSize: 11.5.sp),
           filled: true,
           fillColor: Colors.grey.shade100,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          contentPadding: EdgeInsets.all(12.r),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
             borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
             borderSide: const BorderSide(color: Color(0xFF0A49B7), width: 1.5),
           ),
         ),
@@ -537,13 +550,13 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
   Widget _buildEmptyUpload(BuildContext context) {
     return InkWell(
       onTap: () => context.read<PengaduanProvider>().pickMedia(context),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10.r),
       child: Container(
-        height: 150,
+        height: 125.h,
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10.r),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Column(
@@ -552,62 +565,67 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: const [
+                borderRadius: BorderRadius.circular(8.r),
+                boxShadow: [
                   BoxShadow(
                       color: Colors.black12,
-                      blurRadius: 5,
-                      offset: Offset(0, 2))
+                      blurRadius: 4.r,
+                      offset: Offset(0, 2.h))
                 ],
               ),
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(6.r),
                 child: SvgPicture.asset(
                   "assets/icons/uploadCloud.svg",
-                  width: 35,
-                  height: 35,
+                  width: 28.r,
+                  height: 28.r,
                   colorFilter:
                       ColorFilter.mode(Colors.grey.shade600, BlendMode.srcIn),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 8.h),
             Text("Upload Gambar",
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey)),
+                style: GoogleFonts.poppins(
+                    fontSize: 12.sp, color: Colors.grey[700])),
             Text("Ukuran file gambar maksimal adalah 4 MB.",
-                style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                style:
+                    GoogleFonts.poppins(fontSize: 10.sp, color: Colors.grey)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMediaGrid(BuildContext context, PengaduanProvider provider) {
+  Widget _buildMediaGrid(
+      BuildContext context, PengaduanProvider provider, bool isTablet) {
     final bool canAdd = provider.uploadMedia.length < 4;
+    final int crossAxisCount = isTablet ? 4 : 2;
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: canAdd
           ? provider.uploadMedia.length + 1
           : provider.uploadMedia.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 8.w,
+        mainAxisSpacing: 8.h,
         childAspectRatio: 1,
       ),
       itemBuilder: (context, index) {
         if (canAdd && index == provider.uploadMedia.length) {
           return InkWell(
             onTap: () => provider.pickMedia(context),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(8.r),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: const Icon(Icons.add, color: Colors.grey, size: 30),
+              child: Icon(Icons.add, color: Colors.grey, size: 26.r),
             ),
           );
         }
@@ -615,7 +633,7 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
           children: [
             Positioned.fill(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8.r),
                 child: InkWell(
                   onTap: () {
                     showDialog(
@@ -623,7 +641,7 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
                       builder: (_) => Dialog(
                         backgroundColor: Colors.black,
                         child: SizedBox(
-                          height: 400,
+                          height: 350.h,
                           child: PhotoView(
                               imageProvider:
                                   FileImage(File(provider.uploadMedia[index]))),
@@ -637,18 +655,18 @@ class _BuatPengaduanState extends State<BuatPengaduan> {
               ),
             ),
             Positioned(
-              top: 6,
-              right: 6,
+              top: 4.h,
+              right: 4.w,
               child: Material(
                 type: MaterialType.circle,
                 color: Colors.black54,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(100),
+                  borderRadius: BorderRadius.circular(100.r),
                   onTap: () =>
                       provider.removeMedia(provider.uploadMedia[index]),
-                  child: const Padding(
-                    padding: EdgeInsets.all(6.0),
-                    child: Icon(Icons.close, size: 18, color: Colors.white),
+                  child: Padding(
+                    padding: EdgeInsets.all(5.r),
+                    child: Icon(Icons.close, size: 14.r, color: Colors.white),
                   ),
                 ),
               ),

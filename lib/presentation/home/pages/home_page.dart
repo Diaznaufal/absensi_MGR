@@ -1,11 +1,10 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_absensi_app/core/constants/variables.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/core/helper/radius_calculate.dart';
 import 'package:flutter_absensi_app/data/datasources/attendance_remote_datasource.dart';
 import 'package:flutter_absensi_app/data/datasources/auth_local_datasource.dart';
-import 'package:flutter_absensi_app/data/models/response/attendance_response_model.dart';
 import 'package:flutter_absensi_app/data/models/response/user_response_model.dart';
 import 'package:flutter_absensi_app/presentation/cutiIzin/bloc/get_all_leaves/get_all_leaves_bloc.dart';
 import 'package:flutter_absensi_app/presentation/home/bloc/get_company/get_company_bloc.dart';
@@ -17,7 +16,6 @@ import 'package:flutter_absensi_app/presentation/notifikasi/page/notifikasi_page
 import 'package:flutter_absensi_app/presentation/overtimes/pages/overtime_page.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/page/pengaduan_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/core.dart';
@@ -37,7 +35,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String? faceEmbedding;
   double? latitude;
   double? longitude;
-  bool _isCheckingLocation = false;
+
+  // Stream untuk melacak pergerakan GPS secara real-time
+  StreamSubscription<Position>? _positionStream;
+
+  DateTime? _parseTimeString(String timeStr) {
+    if (timeStr.isEmpty) return null;
+    try {
+      final parts = timeStr.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hour, minute);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Variable & Timer untuk Jam Real-time
+  late Timer _clockTimer;
+  late DateTime _currentTime;
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -52,16 +69,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+    _currentTime = DateTime.now();
+
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentTime = DateTime.now();
+        });
+      }
+    });
+
     _initializeAnimations();
     _initializeFaceEmbedding();
 
     context.read<IsCheckedinBloc>().add(const IsCheckedinEvent.isCheckedIn());
     context.read<GetCompanyBloc>().add(const GetCompanyEvent.getCompany());
     context.read<GetUserBloc>().add(const GetUserEvent.getUser());
-
     context.read<GetAllLeavesBloc>().add(GetAllLeavesEvent.getAllLeaves());
 
-    getCurrentPositionOneTime(); // Memanggil fungsi satu kali di awal dengan jeda aman
+    initLocationTracking();
     _startAnimations();
   }
 
@@ -122,52 +148,85 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _positionStream?.cancel();
+    _clockTimer.cancel();
     _fadeController.dispose();
     _slideController.dispose();
     _cardController.dispose();
     super.dispose();
   }
 
-  // Fungsi pengambilan lokasi 1 kali di awal saat masuk Home secara aman
-  Future<void> getCurrentPositionOneTime() async {
-    if (_isCheckingLocation) return;
+  Future<void> initLocationTracking() async {
     try {
-      setState(() {
-        _isCheckingLocation = true;
-      });
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        debugPrint('Layanan lokasi dinonaktifkan.');
+        return;
+      }
 
-      LocationPermission permission;
-      permission = await Geolocator.checkPermission();
-
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission(); // Memicu Popup 1
+        permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() => _isCheckingLocation = false);
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _isCheckingLocation = false);
         return;
       }
 
-      // Memberikan jeda waktu 1.5 detik agar Popup 1 benar-benar tertutup sempurna di sistem OS
-      await Future.delayed(const Duration(milliseconds: 1500));
+      // Ambil lokasi cache terlebih dahulu agar tidak null sesaat
+      Position? lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        setState(() {
+          latitude = lastKnown.latitude;
+          longitude = lastKnown.longitude;
+        });
+      }
 
-      // Baru ambil posisi koordinat di sini (Memicu Popup 2 jika GPS user mati)
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      // Ambil posisi presisi saat ini
+      try {
+        Position initialPos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 5),
+        );
+        if (mounted) {
+          setState(() {
+            latitude = initialPos.latitude;
+            longitude = initialPos.longitude;
+          });
+        }
+      } catch (e) {
+        debugPrint('Gagal fetch current position instan: $e');
+      }
+
+      // Pasang stream continuous tracking
+      await _positionStream?.cancel();
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
       );
 
-      setState(() {
-        latitude = position.latitude;
-        longitude = position.longitude;
-        _isCheckingLocation = false;
-      });
+      _positionStream = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (Position position) {
+          if (mounted) {
+            setState(() {
+              latitude = position.latitude;
+              longitude = position.longitude;
+            });
+            debugPrint(
+                'GPS Updated: ${position.latitude}, ${position.longitude}');
+          }
+        },
+        onError: (e) {
+          debugPrint('Error pada Location Stream: $e');
+        },
+      );
     } catch (e) {
-      debugPrint('Error mengambil lokasi di awal: $e');
-      setState(() => _isCheckingLocation = false);
+      debugPrint('Error menginisialisasi pelacakan lokasi: $e');
     }
   }
 
@@ -189,106 +248,123 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     context.read<GetUserBloc>().add(const GetUserEvent.getUser());
     context.read<GetCompanyBloc>().add(const GetCompanyEvent.getCompany());
     context.read<IsCheckedinBloc>().add(const IsCheckedinEvent.isCheckedIn());
-
     context.read<GetAllLeavesBloc>().add(GetAllLeavesEvent.getAllLeaves());
 
     await _initializeFaceEmbedding();
-    await getCurrentPositionOneTime(); // Mengambil ulang koordinat saat halaman di-refresh
+    await initLocationTracking();
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _currentTime = DateTime.now();
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final bool isSmallDevice = size.height < 700;
-    final double headerBottomPadding = isSmallDevice ? 65 : 70;
-    final double cardOverlap = isSmallDevice ? 120 : 130;
+    final bool isTablet = size.width >= 600;
+    final bool isVerySmallDevice = size.width < 340;
+    final double horizontalPadding =
+        isTablet ? 20.w : (isVerySmallDevice ? 10.w : 14.w);
+
+    // Padding bottom header yang cukup untuk menampung overlap card
+    final double headerBottomPadding = isTablet ? 90.h : 80.h;
+    final double cardTopOffset = isTablet ? 120.h : 110.h;
 
     return Scaffold(
-      backgroundColor: const Color(0xBAE7E8EC),
+      backgroundColor: const Color(0xFFF3F5F9),
       appBar: AppBar(
         elevation: 0,
         toolbarHeight: 0,
         backgroundColor: const Color(0xFF0A49B7),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 30),
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      BlocBuilder<GetUserBloc, GetUserState>(
-                        builder: (context, userState) {
-                          return userState.maybeWhen(
-                            success: (user) {
-                              _lastUser = user;
-
-                              return FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: _buildHeader(
-                                  headerBottomPadding,
-                                  user,
-                                ),
-                              );
-                            },
-                            orElse: () {
-                              if (_lastUser != null) {
-                                return _buildHeader(
-                                  headerBottomPadding,
-                                  _lastUser!,
+        child: Center(
+          // Membatasi lebar konten agar di tablet tidak melar berlebihan
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(bottom: 30.h),
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        BlocBuilder<GetUserBloc, GetUserState>(
+                          builder: (context, userState) {
+                            return userState.maybeWhen(
+                              success: (user) {
+                                _lastUser = user;
+                                return FadeTransition(
+                                  opacity: _fadeAnimation,
+                                  child: _buildHeader(
+                                    headerBottomPadding,
+                                    user,
+                                    horizontalPadding,
+                                  ),
                                 );
-                              }
-
-                              return const SizedBox.shrink();
-                            },
-                          );
-                        },
-                      ),
-                      Positioned(
-                        left: 16,
-                        right: 16,
-                        top: cardOverlap,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: ScaleTransition(
-                            scale: _cardAnimation,
-                            child: _buildTimeCard(),
+                              },
+                              orElse: () {
+                                if (_lastUser != null) {
+                                  return _buildHeader(
+                                    headerBottomPadding,
+                                    _lastUser!,
+                                    horizontalPadding,
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            );
+                          },
+                        ),
+                        Positioned(
+                          left: horizontalPadding,
+                          right: horizontalPadding,
+                          top: cardTopOffset,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: ScaleTransition(
+                              scale: _cardAnimation,
+                              child: _buildTimeCard(),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: cardOverlap - 10),
-                  SlideTransition(
-                    position: _slideAnimation,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildMenuGrid(),
+                      ],
                     ),
-                  ),
-                ],
-              )),
+                    // Jarak pemisah dinamis setelah header stack
+                    SizedBox(height: isTablet ? 90.h : 80.h),
+                    SlideTransition(
+                      position: _slideAnimation,
+                      child: Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: _buildMenuGrid(size),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(double bottomPadding, UserResponseModel user) {
+  Widget _buildHeader(
+      double bottomPadding, UserResponseModel user, double horizontalPadding) {
     final employee = user.employee;
     return ClipPath(
       clipper: HeaderClipper(),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.fromLTRB(16, 14, 16, bottomPadding),
+        padding: EdgeInsets.fromLTRB(
+            horizontalPadding, 14.h, horizontalPadding, bottomPadding),
         decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,20 +372,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Row(
               children: [
                 Container(
-                  width: 54,
-                  height: 54,
+                  width: 50.r,
+                  height: 50.r,
                   decoration: BoxDecoration(
                     color: const Color(0xA1B8BBBE),
-                    borderRadius: BorderRadius.circular(27),
+                    borderRadius: BorderRadius.circular(25.r),
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(27),
+                    borderRadius: BorderRadius.circular(25.r),
                     child: Center(
-                      child: user.avatar != null && user.avatar!.isNotEmpty
+                      child: (user.avatar != null &&
+                              user.avatar!.isNotEmpty &&
+                              user.avatar!.startsWith('http'))
                           ? Image.network(
                               user.avatar!,
-                              width: 54,
-                              height: 54,
+                              width: 50.r,
+                              height: 50.r,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Center(
@@ -319,7 +397,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                         : 'U',
                                     style: GoogleFonts.poppins(
                                       color: Colors.white,
-                                      fontSize: 18,
+                                      fontSize: 18.sp,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -333,7 +411,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     : 'U',
                                 style: GoogleFonts.poppins(
                                   color: Colors.white,
-                                  fontSize: 18,
+                                  fontSize: 18.sp,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -341,7 +419,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                const SpaceWidth(12),
+                SpaceWidth(12.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,7 +427,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Text(
                         'Selamat datang 👋',
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w500,
                           color: Colors.white.withOpacity(0.8),
                         ),
@@ -359,7 +437,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ? user.name!.split(' ').take(2).join(' ')
                             : '',
                         style: GoogleFonts.poppins(
-                          fontSize: 20,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                           height: 1.1,
@@ -370,10 +448,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Text(
                         employee?.nameProduct ?? '',
                         style: GoogleFonts.poppins(
-                          fontSize: 13,
+                          fontSize: 11.sp,
                           fontWeight: FontWeight.w500,
                           color: Colors.white.withOpacity(0.9),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -383,33 +463,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     context.push(const NotifikasiPage());
                   },
                   child: Container(
-                    padding: const EdgeInsets.all(5),
+                    padding: EdgeInsets.all(6.r),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20.r),
                     ),
-                    child: const Badge(
-                      offset: Offset(10, -10),
+                    child: Badge(
+                      offset: Offset(6.w, -6.h),
                       backgroundColor: Colors.red,
-                      label: Text("3"),
+                      label: Text("3", style: TextStyle(fontSize: 10.sp)),
                       textColor: Colors.white,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 1),
-                        child: Icon(
-                          Icons.notifications_outlined,
-                          size: 28,
-                          color: Colors.white,
-                        ),
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        size: 24.r,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SpaceHeight(14),
+            SpaceHeight(14.h),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 8.w,
+              runSpacing: 8.h,
               children: [
                 _buildHeaderChip(Icons.badge_rounded, user.roleLabel ?? ''),
                 _buildHeaderChip(
@@ -435,17 +512,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         final bool alreadyCheckedIn =
             absenceTodayData['already_checked_in'] == true;
-
         final String? jamMasukRaw = absenceTodayData['jam_masuk']?.toString();
-
         final String statusLabel =
             absenceTodayData['status_label']?.toString() ?? '';
-
         final String currentStatus =
             absenceTodayData['status']?.toString() ?? '';
 
         final bool isDayOff = statusLabel == 'Day Off' || currentStatus == '2';
-
         final bool isCuti = statusLabel == 'Cuti' || currentStatus == '4';
 
         final String checkInJam =
@@ -453,9 +526,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ? jamMasukRaw.substring(0, 5)
                 : '-';
 
-        // ============================================
-        // AMBIL LANGSUNG DARI /absence/today
-        // ============================================
         final Map<String, dynamic> workshift =
             absenceTodayData['workshift'] is Map
                 ? Map<String, dynamic>.from(
@@ -465,25 +535,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         final String shiftName =
             workshift['name_workshift']?.toString() ?? 'Memuat...';
-
         final String rawClockIn = workshift['clock_in']?.toString() ?? '';
-
         final String rawClockOut = workshift['clock_out']?.toString() ?? '';
 
         final String jadwalClockIn =
             rawClockIn.length >= 5 ? rawClockIn.substring(0, 5) : '00:00';
-
         final String jadwalClockOut =
             rawClockOut.length >= 5 ? rawClockOut.substring(0, 5) : '00:00';
 
         return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 16,
+          padding: EdgeInsets.symmetric(
+            horizontal: 14.w,
+            vertical: 14.h,
           ),
           decoration: BoxDecoration(
             color: const Color(0xFFFDFDFE),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
             border: Border.all(
               color: const Color(0xFFE5E9F4),
               width: 1,
@@ -491,8 +558,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF1B2D78).withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
+                blurRadius: 16.r,
+                offset: Offset(0, 8.h),
               ),
             ],
           ),
@@ -502,32 +569,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Waktu sekarang',
                           style: GoogleFonts.poppins(
-                            fontSize: 13,
+                            fontSize: 11.sp,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF8A94B4),
                           ),
                         ),
-                        const SpaceHeight(4),
-                        Text(
-                          DateTime.now().toFormattedTime(),
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 36,
-                            color: const Color(0xFF1B2D78),
-                            height: 0.95,
+                        SpaceHeight(2.h),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _currentTime.toFormattedTime(),
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 28.sp,
+                              color: const Color(0xFF1B2D78),
+                              height: 1.0,
+                            ),
                           ),
                         ),
-                        const SpaceHeight(4),
+                        SpaceHeight(2.h),
                         Text(
-                          DateTime.now().toFormattedDate(),
+                          _currentTime.toFormattedDate(),
                           style: GoogleFonts.poppins(
-                            fontSize: 13,
+                            fontSize: 11.sp,
                             color: const Color(0xFF8A94B4),
                             fontWeight: FontWeight.w500,
                           ),
@@ -537,36 +608,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   Container(
                     width: 1,
+                    height: 48.h,
                     color: const Color(0xFFE2E6F3),
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    margin: EdgeInsets.symmetric(horizontal: 10.w),
                   ),
-                  SizedBox(
-                    width: 110,
+                  Expanded(
+                    flex: 2,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Jam kerja',
                           style: GoogleFonts.poppins(
-                            fontSize: 13,
+                            fontSize: 11.sp,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF8A94B4),
                           ),
                         ),
-                        const SpaceHeight(6),
-                        Text(
-                          '$jadwalClockIn-$jadwalClockOut',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: const Color(0xFF1B2D78),
+                        SpaceHeight(2.h),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '$jadwalClockIn-$jadwalClockOut',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14.sp,
+                              color: const Color(0xFF1B2D78),
+                            ),
                           ),
                         ),
-                        const SpaceHeight(6),
+                        SpaceHeight(2.h),
                         Text(
                           shiftName,
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11.sp,
                             color: const Color(0xFF8A94B4),
                             fontWeight: FontWeight.w500,
                           ),
@@ -578,34 +653,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              const Divider(thickness: 1.5),
+              Divider(thickness: 1, height: 18.h),
               if (alreadyCheckedIn)
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text:
-                            'Anda sudah melakukan Check In hari ini pukul : $checkInJam\n',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                      TextSpan(
-                        text: 'Jangan lupa untuk melakukan Check Out',
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Anda sudah Check In pukul: $checkInJam. Checkout aktif 10 mnt sebelum $jadwalClockOut',
+                  style: GoogleFonts.poppins(
+                    fontSize: 10.sp,
+                    color: Colors.redAccent,
                   ),
                 )
               else if (isDayOff)
                 Text(
                   'Hari ini jadwal Day Off anda. Selamat beristirahat!',
                   style: GoogleFonts.poppins(
-                    fontSize: 10,
+                    fontSize: 10.sp,
                     color: Colors.redAccent,
                   ),
                 )
@@ -613,15 +674,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Text(
                   'Hari ini anda sedang mengambil masa Cuti',
                   style: GoogleFonts.poppins(
-                    fontSize: 10,
+                    fontSize: 10.sp,
                     color: Colors.redAccent,
                   ),
                 )
               else
                 Text(
-                  'Belum ada riwayat Absen hari ini. Silahkan melakukan Check In',
+                  'Belum ada riwayat Absen. Check In aktif 1 jam sebelum jam masuk.',
                   style: GoogleFonts.poppins(
-                    fontSize: 10,
+                    fontSize: 10.sp,
                     color: Colors.redAccent,
                   ),
                 ),
@@ -632,158 +693,163 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMenuGrid() {
+  Widget _buildMenuGrid(Size screenSize) {
+    final bool isWide = screenSize.width >= 550;
+    final int crossAxisCount = isWide ? 4 : 2;
+
+    // Rasio aspek disesuaikan agar tinggi container pas dan simetris
+    final double quickActionAspectRatio = isWide ? 1.35 : 1.35;
+    final double serviceCardAspectRatio = isWide ? 1.28 : 1.25;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Aksi Cepat',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 15.sp,
             fontWeight: FontWeight.bold,
             color: const Color(0xFF1B2D78),
           ),
         ),
-        const SpaceHeight(12),
+        SpaceHeight(10.h),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.3,
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 10.w,
+          mainAxisSpacing: 10.h,
+          childAspectRatio: quickActionAspectRatio,
           children: [
             _buildAttendanceButton(isCheckIn: true),
             _buildAttendanceButton(isCheckIn: false),
           ],
         ),
-        const SpaceHeight(18),
+        SpaceHeight(16.h),
         Text(
           'Layanan Karyawan',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 15.sp,
             fontWeight: FontWeight.bold,
             color: const Color(0xFF1B2D78),
           ),
         ),
-        const SpaceHeight(12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cardWidth = (constraints.maxWidth - 12) / 2;
-
-            return Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                SizedBox(
-                  width: cardWidth,
-                  child: _buildModernButtonCuti(
-                    icon: Icons.event_busy_rounded,
-                    label: 'Izin / Cuti',
-                    subtitle: 'Ajukan izin atau cuti anda',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFFFE5EA), Color(0xFFFFE5EA)]),
-                    onPressed: () => context.push(const LeavePage()),
-                  ),
-                ),
-                SizedBox(
-                  width: cardWidth,
-                  child: _buildModernButtonLembur(
-                    icon: Icons.more_time_rounded,
-                    label: 'Lembur',
-                    subtitle: 'Ajukan lembur kerja anda',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFDCE7FF), Color(0xFFDCE7FF)]),
-                    onPressed: () => context.push(const OvertimePage()),
-                  ),
-                ),
-                SizedBox(
-                  width: cardWidth,
-                  child: _buildModernButtonPengaduan(
-                    icon: Icons.campaign,
-                    label: 'Pengaduan ',
-                    subtitle: 'Sampaikan pengaduan ke perusahaan',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFFFEDB8), Color(0xFFFFEDB8)]),
-                    onPressed: () => context.push(PengaduanPage()),
-                  ),
-                ),
-                SizedBox(
-                  width: cardWidth,
-                  child: _buildModernButtonLibur(
-                    icon: Icons.calendar_month,
-                    label: 'Libur Karyawan',
-                    subtitle: 'Ajukan dan \nkelola jadwal libur anda',
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFE8D8FF), Color(0xFFE8D8FF)]),
-                    onPressed: () => context.push(LiburkaryawanPage()),
-                  ),
-                ),
-              ],
-            );
-          },
+        SpaceHeight(10.h),
+        // Menggunakan GridView agar semua kartu Layanan Karyawan otomatis seragam tingginya
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 10.w,
+          mainAxisSpacing: 10.h,
+          childAspectRatio: serviceCardAspectRatio,
+          children: [
+            _buildReusableMenuCard(
+              icon: Icons.event_busy_rounded,
+              label: 'Izin / Cuti',
+              subtitle: 'Ajukan izin atau cuti',
+              themeColor: const Color(0xFFFF4D67),
+              bgColor: const Color(0xFFFFE5EA),
+              onPressed: () => context.push(const LeavePage()),
+            ),
+            _buildReusableMenuCard(
+              icon: Icons.more_time_rounded,
+              label: 'Lembur',
+              subtitle: 'Ajukan lembur kerja',
+              themeColor: const Color(0xFF0059FF),
+              bgColor: const Color(0xFFDCE7FF),
+              onPressed: () => context.push(const OvertimePage()),
+            ),
+            _buildReusableMenuCard(
+              icon: Icons.campaign_rounded,
+              label: 'Pengaduan',
+              subtitle: 'Pengaduan perusahaan',
+              themeColor: const Color(0xFFE59400),
+              bgColor: const Color(0xFFFFEDB8),
+              onPressed: () => context.push(PengaduanPage()),
+            ),
+            _buildReusableMenuCard(
+              icon: Icons.calendar_month_rounded,
+              label: 'Libur Karyawan',
+              subtitle: 'Kelola jadwal libur',
+              themeColor: const Color(0xFF7E3AF2),
+              bgColor: const Color(0xFFE8D8FF),
+              onPressed: () => context.push(LiburkaryawanPage()),
+            ),
+          ],
         ),
       ],
     );
   }
 
   Widget _buildAttendanceButton({required bool isCheckIn}) {
-    return BlocBuilder<GetCompanyBloc, GetCompanyState>(
-      builder: (context, companyState) {
-        final latitudePoint = companyState.maybeWhen(
-            orElse: () => 0.0, success: (data) => double.parse(data.latitude!));
-        final longitudePoint = companyState.maybeWhen(
-            orElse: () => 0.0,
-            success: (data) => double.parse(data.longitude!));
-        final radiusPoint = companyState.maybeWhen(
-            orElse: () => 0.0, success: (data) => double.parse(data.radiusKm!));
-        final attendanceType = companyState.maybeWhen(
-            orElse: () => 'Location', success: (data) => data.attendanceType!);
+    return BlocBuilder<IsCheckedinBloc, IsCheckedinState>(
+      builder: (context, checkedInState) {
+        final Map<String, dynamic> absenceTodayData = checkedInState.maybeWhen(
+          success: (absenceData) =>
+              absenceData is Map<String, dynamic> ? absenceData : {},
+          orElse: () => {},
+        );
 
-        return BlocBuilder<IsCheckedinBloc, IsCheckedinState>(
-          builder: (context, checkedInState) {
-            final Map<String, dynamic> absenceTodayData =
-                checkedInState.maybeWhen(
-              success: (absenceData) => absenceData,
-              orElse: () => {},
-            );
+        final String? polygonRaw = absenceTodayData['polygon']?.toString();
+        final bool hasSchedule = absenceTodayData['has_schedule'] == true;
+        final bool alreadyCheckedIn =
+            absenceTodayData['already_checked_in'] == true;
+        final String idScheduleApi =
+            absenceTodayData['id_schedule']?.toString() ?? '';
+        final String statusLabel =
+            absenceTodayData['status_label']?.toString() ?? '';
+        final String currentStatus =
+            absenceTodayData['status']?.toString() ?? '';
 
-            final bool hasSchedule = absenceTodayData['has_schedule'] == true;
-            final bool alreadyCheckedIn =
-                absenceTodayData['already_checked_in'] == true;
-            final String idScheduleApi =
-                absenceTodayData['id_schedule']?.toString() ?? '';
-            final String statusLabel =
-                absenceTodayData['status_label']?.toString() ?? '';
-            final String currentStatus =
-                absenceTodayData['status']?.toString() ?? '';
+        final bool isDayOff = statusLabel == 'Day Off' || currentStatus == '2';
+        final bool isCuti = statusLabel == 'Cuti' || currentStatus == '4';
 
-            final bool isDayOff =
-                statusLabel == 'Day Off' || currentStatus == '2';
-            final bool isCuti = statusLabel == 'Cuti' || currentStatus == '4';
+        final Map<String, dynamic> workshift =
+            absenceTodayData['workshift'] is Map
+                ? Map<String, dynamic>.from(
+                    absenceTodayData['workshift'] as Map,
+                  )
+                : {};
 
-            bool isDisabled = true;
+        final String rawClockIn = workshift['clock_in']?.toString() ?? '';
+        final String rawClockOut = workshift['clock_out']?.toString() ?? '';
 
-            if (isCheckIn) {
-              isDisabled =
-                  !(hasSchedule && !alreadyCheckedIn && !isDayOff && !isCuti);
-            } else {
-              isDisabled = !(hasSchedule && alreadyCheckedIn);
-            }
+        final DateTime? scheduleClockIn = _parseTimeString(rawClockIn);
+        final DateTime? scheduleClockOut = _parseTimeString(rawClockOut);
 
-            return _buildModernAttendanceButton(
-              isCheckIn: isCheckIn,
-              isDisabledButton: isDisabled,
-              onPressed: () => _handleAttendance(
-                isCheckIn: isCheckIn,
-                idSchedule: idScheduleApi,
-                latitudePoint: latitudePoint,
-                longitudePoint: longitudePoint,
-                radiusPoint: radiusPoint,
-                attendanceType: attendanceType,
-              ),
-            );
-          },
+        final DateTime now = _currentTime;
+
+        bool isDisabled = true;
+
+        if (!hasSchedule || isDayOff || isCuti) {
+          isDisabled = true;
+        } else if (isCheckIn) {
+          if (!alreadyCheckedIn && scheduleClockIn != null) {
+            final DateTime checkInWindowStart =
+                scheduleClockIn.subtract(const Duration(hours: 1));
+            isDisabled = now.isBefore(checkInWindowStart);
+          } else {
+            isDisabled = true;
+          }
+        } else {
+          if (alreadyCheckedIn && scheduleClockOut != null) {
+            final DateTime checkOutWindowStart =
+                scheduleClockOut.subtract(const Duration(minutes: 10));
+            isDisabled = now.isBefore(checkOutWindowStart);
+          } else {
+            isDisabled = true;
+          }
+        }
+
+        return _buildModernAttendanceButton(
+          isCheckIn: isCheckIn,
+          isDisabledButton: isDisabled,
+          onPressed: () => _handleAttendance(
+            isCheckIn: isCheckIn,
+            idSchedule: idScheduleApi,
+            polygonRaw: polygonRaw,
+          ),
         );
       },
     );
@@ -792,10 +858,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Future<void> _handleAttendance({
     required bool isCheckIn,
     required String idSchedule,
-    required double latitudePoint,
-    required double longitudePoint,
-    required double radiusPoint,
-    required String attendanceType,
+    required String? polygonRaw,
   }) async {
     try {
       final faceStatusResult =
@@ -808,36 +871,75 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // TIDAK ADA fungsi mengambil lokasi (getCurrentPosition) di sini lagi.
-      // Tombol langsung mencocokkan variabel latitude/longitude yang sudah didapat sejak awal masuk aplikasi.
+      if (latitude == null || longitude == null) {
+        try {
+          Position pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 5),
+          );
+          latitude = pos.latitude;
+          longitude = pos.longitude;
+        } catch (e) {
+          Position? lastKnown = await Geolocator.getLastKnownPosition();
+          if (lastKnown != null) {
+            latitude = lastKnown.latitude;
+            longitude = lastKnown.longitude;
+          }
+        }
+      }
 
       if (latitude == null || longitude == null) {
-        _showModernDialog(
+        if (mounted) {
+          _showModernDialog(
             'Lokasi Belum Siap',
-            'Gagal mendeteksi lokasi dasar perangkat. Coba muat ulang halaman ini.',
+            'Sedang mencari sinyal GPS. Pastikan GPS aktif dengan akurasi tinggi lalu coba kembali.',
             Icons.location_off_rounded,
-            Colors.orange);
+            Colors.orange,
+          );
+        }
         return;
       }
 
-      final distanceKm = RadiusCalculate.calculateDistance(
-        latitude ?? 0.0,
-        longitude ?? 0.0,
-        latitudePoint,
-        longitudePoint,
-      );
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 3),
+        );
+        if (position.isMocked) {
+          _showFakeGpsDialog();
+          return;
+        }
+      } catch (_) {}
 
-      if (distanceKm > radiusPoint &&
-          (attendanceType == 'location_based_only' ||
-              attendanceType == 'hybrid')) {
-        _showOutOfAreaDialog(distance: distanceKm, allowedRadius: radiusPoint);
-        return;
+      final List<List<double>> polygonPoints =
+          RadiusCalculate.parsePolygon(polygonRaw);
+
+      if (polygonPoints.isNotEmpty) {
+        final bool isInside = RadiusCalculate.isPointInPolygon(
+          latitude!,
+          longitude!,
+          polygonPoints,
+          toleranceMeters: 30.0,
+        );
+
+        if (!isInside) {
+          if (mounted) {
+            _showOutOfAreaDialog();
+          }
+          return;
+        }
       }
 
-      _navigateToAttendance(attendanceType, isCheckIn, idSchedule);
+      _navigateToAttendance('polygon_based', isCheckIn, idSchedule);
     } catch (e) {
-      _showModernDialog(
-          'Error', 'Terjadi kesalahan: $e', Icons.error_rounded, Colors.red);
+      if (mounted) {
+        _showModernDialog(
+          'Error',
+          'Terjadi kesalahan: $e',
+          Icons.error_rounded,
+          Colors.red,
+        );
+      }
     }
   }
 
@@ -854,9 +956,84 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
     );
+
     if (mounted) {
+      initLocationTracking();
       context.read<IsCheckedinBloc>().add(const IsCheckedinEvent.isCheckedIn());
     }
+  }
+
+  void _showOutOfAreaDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        child: Container(
+          padding: EdgeInsets.all(20.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.all(16.r),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.location_off_rounded,
+                  color: Colors.red,
+                  size: 36.r,
+                ),
+              ),
+              SpaceHeight(16.h),
+              Text(
+                'Absensi Gagal',
+                style: GoogleFonts.poppins(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+              SpaceHeight(8.h),
+              Text(
+                'Anda berada di luar area lokasi kantor yang telah ditentukan.',
+                style: GoogleFonts.poppins(
+                  fontSize: 12.sp,
+                  color: Colors.grey[700],
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SpaceHeight(20.h),
+              SizedBox(
+                width: double.infinity,
+                height: 42.h,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Mengerti',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13.sp,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildModernAttendanceButton({
@@ -868,55 +1045,158 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final IconData icon =
         isCheckIn ? Icons.login_rounded : Icons.logout_rounded;
 
-    final LinearGradient gradient = isCheckIn
-        ? const LinearGradient(colors: [Color(0xFFDFF5E7), Color(0xFFD2F0DE)])
-        : const LinearGradient(colors: [Color(0xFFFDEADF), Color(0xFFF9E3D5)]);
-
-    final LinearGradient disabledGradient =
-        const LinearGradient(colors: [Color(0xFFF0F2F7), Color(0xFFE9ECF4)]);
-
-    final Color textColor =
+    final Color themeColor =
         isCheckIn ? const Color(0xFF1F8B4D) : const Color(0xFFFE600B);
-    final Color containerColor =
-        isCheckIn ? const Color(0xFF1F8B4D) : const Color(0xFFFE600B);
+    final Color bgColor =
+        isCheckIn ? const Color(0xFFE3F7EB) : const Color(0xFFFEECE0);
 
-    return GestureDetector(
+    return InkWell(
       onTap: isDisabledButton ? null : onPressed,
+      borderRadius: BorderRadius.circular(16.r),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(horizontal: 10.w),
         decoration: BoxDecoration(
-          gradient: isDisabledButton ? disabledGradient : gradient,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white, width: 1),
+          color: isDisabledButton ? const Color(0xFFEBEFF5) : bgColor,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: Colors.white,
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1B2D78).withOpacity(0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 7),
+              color: const Color(0xFF1B2D78).withOpacity(0.05),
+              blurRadius: 10.r,
+              offset: Offset(0, 4.h),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: BoxDecoration(
+                  color:
+                      isDisabledButton ? const Color(0xFFA1A9C3) : themeColor,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Icon(icon, color: Colors.white, size: 22.r),
+              ),
+              SpaceHeight(8.h),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.bold,
+                    color:
+                        isDisabledButton ? const Color(0xFFA1A9C3) : themeColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReusableMenuCard({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required Color themeColor,
+    required Color bgColor,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16.r),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1B2D78).withOpacity(0.05),
+              blurRadius: 6.r,
+              offset: Offset(0, 3.h),
             ),
           ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Icon Kotak Atas
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(8.r),
               decoration: BoxDecoration(
-                color:
-                    isDisabledButton ? const Color(0xFFA1A9C3) : containerColor,
-                borderRadius: BorderRadius.circular(16),
+                color: themeColor,
+                borderRadius: BorderRadius.circular(12.r),
               ),
-              child: Icon(icon, color: Colors.white, size: 24),
+              child: Icon(icon, color: Colors.white, size: 22.r),
             ),
-            const SpaceHeight(8),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: isDisabledButton ? const Color(0xFFA1A9C3) : textColor,
-              ),
-              textAlign: TextAlign.center,
+
+            // Bagian Bawah: Judul, Subtitle & Icon Panah
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.bold,
+                    color: themeColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SpaceHeight(4.h),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sisi Kiri: Subtitle
+                    Expanded(
+                      flex: 65,
+                      child: Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 10.sp,
+                          color: Colors.black87,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+
+                    Expanded(
+                      flex: 35,
+                      child: Align(
+                        alignment: Alignment.bottomRight,
+                        child: Container(
+                          padding: EdgeInsets.all(8.r),
+                          decoration: BoxDecoration(
+                            color: themeColor.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 10.r,
+                            color: themeColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -929,32 +1209,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(20.r),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(14.r),
                 decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(50)),
-                child: Icon(icon, color: color, size: 32),
+                    borderRadius: BorderRadius.circular(50.r)),
+                child: Icon(icon, color: color, size: 28.r),
               ),
-              const SpaceHeight(16),
+              SpaceHeight(14.h),
               Text(title,
                   style: GoogleFonts.poppins(
-                      fontSize: 18, fontWeight: FontWeight.w600)),
-              const SpaceHeight(8),
+                      fontSize: 16.sp, fontWeight: FontWeight.w600)),
+              SpaceHeight(6.h),
               Text(message,
                   style: GoogleFonts.poppins(
-                      fontSize: 14, color: Colors.grey[600]),
+                      fontSize: 13.sp, color: Colors.grey[600]),
                   textAlign: TextAlign.center),
-              const SpaceHeight(24),
+              SpaceHeight(20.h),
               ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'))
+                  child:
+                      Text('OK', style: GoogleFonts.poppins(fontSize: 12.sp)))
             ],
           ),
         ),
@@ -966,31 +1248,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(20.r),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Registrasi Wajah Diperlukan',
                   style: GoogleFonts.poppins(
-                      fontSize: 18, fontWeight: FontWeight.w600)),
-              const SpaceHeight(12),
+                      fontSize: 16.sp, fontWeight: FontWeight.w600)),
+              SpaceHeight(10.h),
               Text('Anda belum mendaftarkan wajah. Daftarkan sekarang?',
-                  textAlign: TextAlign.center),
-              const SpaceHeight(24),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(fontSize: 12.sp)),
+              SpaceHeight(20.h),
               Row(
                 children: [
                   TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Nanti')),
+                      child: Text('Nanti',
+                          style: GoogleFonts.poppins(fontSize: 12.sp))),
                   const Spacer(),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context);
                       context.push(const RegisterFacePage());
                     },
-                    child: const Text('Registrasi'),
+                    child: Text('Registrasi',
+                        style: GoogleFonts.poppins(fontSize: 12.sp)),
                   )
                 ],
               )
@@ -1001,349 +1287,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  void _showFakeGpsDialog() {}
-  void _showOutOfAreaDialog(
-      {required double distance, required double allowedRadius}) {}
+  void _showFakeGpsDialog() {
+    _showModernDialog(
+      'Aplikasi Terlarang',
+      'Terdeteksi penggunaan lokasi palsu (Fake GPS). Harap matikan aplikasi terkait untuk melanjutkan.',
+      Icons.security,
+      Colors.red,
+    );
+  }
 
   Widget _buildHeaderChip(IconData icon, String text) {
+    if (text.isEmpty) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(16)),
+          borderRadius: BorderRadius.circular(14.r)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SpaceWidth(4),
+          Icon(icon, size: 12.r, color: Colors.white),
+          SpaceWidth(4.w),
           Text(text,
               style: GoogleFonts.poppins(
-                  fontSize: 11,
+                  fontSize: 10.sp,
                   color: Colors.white,
                   fontWeight: FontWeight.w600)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildModernButtonCuti(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required LinearGradient gradient,
-      required VoidCallback onPressed}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: const Color(0xFF1B2D78).withOpacity(0.08),
-                blurRadius: 5,
-                spreadRadius: 1),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFFFFFFFF),
-                size: 32,
-              ),
-            ),
-            const SpaceHeight(12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SpaceHeight(5),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.keyboard_arrow_right,
-                    size: 18,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernButtonLembur(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required LinearGradient gradient,
-      required VoidCallback onPressed}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: const Color(0xFF1B2D78).withOpacity(0.08),
-                blurRadius: 5,
-                spreadRadius: 1),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0059FF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFFFFFFFF),
-                size: 32,
-              ),
-            ),
-            const SpaceHeight(12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF0059FF),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SpaceHeight(5),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0059FF).withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.keyboard_arrow_right,
-                    size: 18,
-                    color: Color(0xFF0059FF),
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernButtonPengaduan(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required LinearGradient gradient,
-      required VoidCallback onPressed}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: const Color(0xFF1B2D78).withOpacity(0.08),
-                blurRadius: 5,
-                spreadRadius: 1),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFFFFFFFF),
-                size: 32,
-              ),
-            ),
-            const SpaceHeight(12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.amber,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SpaceHeight(5),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                    maxLines: 3,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.25),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.keyboard_arrow_right,
-                    size: 18,
-                    color: Colors.amber.shade800,
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernButtonLibur(
-      {required IconData icon,
-      required String label,
-      required String subtitle,
-      required LinearGradient gradient,
-      required VoidCallback onPressed}) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: const Color(0xFF1B2D78).withOpacity(0.08),
-                blurRadius: 5,
-                spreadRadius: 1),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.purple,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(
-                icon,
-                color: const Color(0xFFFFFFFF),
-                size: 32,
-              ),
-            ),
-            const SpaceHeight(12),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.purple,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SpaceHeight(5),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                    maxLines: 3,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.keyboard_arrow_right,
-                    size: 18,
-                    color: Colors.purple,
-                  ),
-                ),
-              ],
-            )
-          ],
-        ),
       ),
     );
   }
@@ -1353,11 +1323,11 @@ class HeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     Path path = Path();
-    path.lineTo(0, size.height - 40);
+    path.lineTo(0, size.height - 35);
     path.quadraticBezierTo(
-        size.width * 0.20, size.height, size.width * 0.45, size.height - 20);
+        size.width * 0.20, size.height, size.width * 0.45, size.height - 18);
     path.quadraticBezierTo(
-        size.width * 0.75, size.height - 50, size.width, size.height - 10);
+        size.width * 0.75, size.height - 45, size.width, size.height - 10);
     path.lineTo(size.width, 0);
     path.close();
     return path;

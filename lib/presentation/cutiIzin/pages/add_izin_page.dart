@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_absensi_app/presentation/cutiIzin/bloc/create_izin/create_izin_bloc.dart';
 import 'package:flutter_absensi_app/presentation/cutiIzin/provider/izin_provider.dart';
@@ -41,124 +42,152 @@ class _AddIzinPageState extends State<AddIzinPage> {
   void _showAttachmentOptions(BuildContext context, IzinProvider provider) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 24),
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.pop(context),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () {},
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 550),
+                child: Container(
                   decoration: BoxDecoration(
-                    color: AppColors.grey.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24.r)),
                   ),
-                ),
-                Text(
-                  'Pilih Sumber Lampiran',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.black,
-                  ),
-                ),
-                const SpaceHeight(20),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.photo_library_rounded,
-                        color: AppColors.primary),
-                  ),
-                  title: Text('Galeri Foto',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-                  subtitle: Text('Ambil gambar dari galeri handphone',
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, color: AppColors.grey)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final ImagePicker picker = ImagePicker();
-                    final XFile? image =
-                        await picker.pickImage(source: ImageSource.gallery);
-                    if (image != null) {
-                      provider.setAttachment(image.path, image.name);
-                    }
-                  },
-                ),
-                const SpaceHeight(8),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.camera_alt_rounded,
-                        color: AppColors.primary),
-                  ),
-                  title: Text('Kamera',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-                  subtitle: Text('Ambil foto langsung dari kamera',
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, color: AppColors.grey)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    final ImagePicker picker = ImagePicker();
-                    final XFile? image =
-                        await picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      provider.setAttachment(image.path, image.name);
-                    }
-                  },
-                ),
-                const SpaceHeight(8),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.insert_drive_file_rounded,
-                        color: AppColors.primary),
-                  ),
-                  title: Text('File Dokumen',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-                  subtitle: Text('Pilih PDF, Word, atau Gambar (Termasuk WebP)',
-                      style: GoogleFonts.poppins(
-                          fontSize: 12, color: AppColors.grey)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    FilePickerResult? result =
-                        await FilePicker.platform.pickFiles(
-                      type: FileType.custom,
-                      allowedExtensions: [
-                        'pdf',
-                        'doc',
-                        'docx',
-                        'png',
-                        'jpg',
-                        'jpeg',
-                        'webp'
+                  padding: EdgeInsets.fromLTRB(18.w, 14.h, 18.w, 20.h),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36.w,
+                          height: 4.h,
+                          margin: EdgeInsets.only(bottom: 16.h),
+                          decoration: BoxDecoration(
+                            color: AppColors.grey.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                        ),
+                        Text(
+                          'Pilih Sumber Lampiran',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15.sp,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.black,
+                          ),
+                        ),
+                        SizedBox(height: 14.h),
+                        ListTile(
+                          leading: Container(
+                            padding: EdgeInsets.all(8.r),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: Icon(Icons.photo_library_rounded,
+                                color: AppColors.primary, size: 20.r),
+                          ),
+                          title: Text('Galeri Foto',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500)),
+                          subtitle: Text('Ambil gambar dari galeri handphone',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 10.5.sp, color: AppColors.grey)),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.gallery);
+                            if (image != null) {
+                              provider.setAttachment(image.path, image.name);
+                            }
+                          },
+                        ),
+                        SizedBox(height: 4.h),
+                        ListTile(
+                          leading: Container(
+                            padding: EdgeInsets.all(8.r),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: Icon(Icons.camera_alt_rounded,
+                                color: AppColors.primary, size: 20.r),
+                          ),
+                          title: Text('Kamera',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500)),
+                          subtitle: Text('Ambil foto langsung dari kamera',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 10.5.sp, color: AppColors.grey)),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                                source: ImageSource.camera);
+                            if (image != null) {
+                              provider.setAttachment(image.path, image.name);
+                            }
+                          },
+                        ),
+                        SizedBox(height: 4.h),
+                        ListTile(
+                          leading: Container(
+                            padding: EdgeInsets.all(8.r),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            child: Icon(Icons.insert_drive_file_rounded,
+                                color: AppColors.primary, size: 20.r),
+                          ),
+                          title: Text('File Dokumen',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500)),
+                          subtitle: Text(
+                              'Pilih PDF, Word, atau Gambar (Termasuk WebP)',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 10.5.sp, color: AppColors.grey)),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            FilePickerResult? result =
+                                await FilePicker.platform.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: [
+                                'pdf',
+                                'doc',
+                                'docx',
+                                'png',
+                                'jpg',
+                                'jpeg',
+                                'webp'
+                              ],
+                            );
+                            if (result != null &&
+                                result.files.single.path != null) {
+                              provider.setAttachment(result.files.single.path!,
+                                  result.files.single.name);
+                            }
+                          },
+                        ),
+                        SizedBox(height: 8.h),
                       ],
-                    );
-                    if (result != null && result.files.single.path != null) {
-                      provider.setAttachment(
-                          result.files.single.path!, result.files.single.name);
-                    }
-                  },
+                    ),
+                  ),
                 ),
-                const SpaceHeight(12),
-              ],
+              ),
             ),
           ),
         );
@@ -203,76 +232,89 @@ class _AddIzinPageState extends State<AddIzinPage> {
         : '';
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context, provider),
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 24),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                        topRight: Radius.circular(32)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                        topRight: Radius.circular(32)),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle('Alasan Izin'),
-                          const SpaceHeight(12),
-                          _buildReasonDropdown(provider),
-                          const SpaceHeight(24),
-                          _buildSectionTitle('Type Izin'),
-                          const SpaceHeight(12),
-                          DropdownButtonFormField<int>(
-                            value: provider.typeDay,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 16),
+      backgroundColor: const Color(0xFF0A49B7),
+      body: SafeArea(
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Column(
+              children: [
+                _buildHeader(context, provider),
+                Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(top: 14.h),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(28.r),
+                        topRight: Radius.circular(28.r),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(28.r),
+                        topRight: Radius.circular(28.r),
+                      ),
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionTitle('Alasan Izin'),
+                            SizedBox(height: 8.h),
+                            _buildReasonDropdown(provider),
+                            SizedBox(height: 16.h),
+                            _buildSectionTitle('Type Izin'),
+                            SizedBox(height: 8.h),
+                            DropdownButtonFormField<int>(
+                              value: provider.typeDay,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12.5.sp, color: Colors.black),
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10.r)),
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12.w, vertical: 12.h),
+                              ),
+                              items: [
+                                DropdownMenuItem(
+                                    value: 1,
+                                    child: Text('Single Day',
+                                        style: TextStyle(fontSize: 12.5.sp))),
+                                DropdownMenuItem(
+                                    value: 2,
+                                    child: Text('Multiple Day',
+                                        style: TextStyle(fontSize: 12.5.sp))),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) provider.setTypeDay(value);
+                              },
                             ),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 1, child: Text('Single Day')),
-                              DropdownMenuItem(
-                                  value: 2, child: Text('Multiple Day')),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) provider.setTypeDay(value);
-                            },
-                          ),
-                          const SpaceHeight(24),
-                          _buildSectionTitle('Rentang Tanggal'),
-                          const SpaceHeight(12),
-                          _buildDateFields(
-                              context, provider, startText, endText),
-                          const SpaceHeight(24),
-                          _buildSectionTitle('Deskripsi'),
-                          const SpaceHeight(12),
-                          _buildDescriptionField(provider),
-                          const SpaceHeight(24),
-                          _buildSectionTitle('Lampiran (Optional)'),
-                          const SpaceHeight(12),
-                          _buildAttachmentField(context, provider),
-                          const SpaceHeight(32),
-                          _buildSubmitButton(provider),
-                        ],
+                            SizedBox(height: 16.h),
+                            _buildSectionTitle('Rentang Tanggal'),
+                            SizedBox(height: 8.h),
+                            _buildDateFields(
+                                context, provider, startText, endText),
+                            SizedBox(height: 16.h),
+                            _buildSectionTitle('Deskripsi'),
+                            SizedBox(height: 8.h),
+                            _buildDescriptionField(provider),
+                            SizedBox(height: 16.h),
+                            _buildSectionTitle('Lampiran (Optional)'),
+                            SizedBox(height: 8.h),
+                            _buildAttachmentField(context, provider),
+                            SizedBox(height: 24.h),
+                            _buildSubmitButton(provider),
+                            SizedBox(height: 10.h),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -281,25 +323,31 @@ class _AddIzinPageState extends State<AddIzinPage> {
 
   Widget _buildHeader(BuildContext context, IzinProvider provider) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
       child: Row(
         children: [
           InkWell(
+            borderRadius: BorderRadius.circular(20),
             onTap: () {
               provider.resetForm();
               Navigator.pop(context);
             },
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              color: Colors.white,
-              size: 22,
+            child: const Padding(
+              padding: EdgeInsets.all(4.0),
+              child: Icon(
+                Icons.arrow_back_ios_new,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
-          const SpaceWidth(12),
+          SizedBox(width: 10.w),
           Text(
             'Ajukan Izin Anda',
             style: GoogleFonts.poppins(
-                fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w700,
+                color: Colors.white),
           ),
         ],
       ),
@@ -309,7 +357,9 @@ class _AddIzinPageState extends State<AddIzinPage> {
   Widget _buildSectionTitle(String title) {
     return Text(title,
         style: GoogleFonts.poppins(
-            fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.black));
+            fontSize: 13.5.sp,
+            fontWeight: FontWeight.w600,
+            color: AppColors.black));
   }
 
   Widget _buildDateFields(BuildContext context, IzinProvider provider,
@@ -322,31 +372,39 @@ class _AddIzinPageState extends State<AddIzinPage> {
             child: IgnorePointer(
               child: TextField(
                 controller: TextEditingController(text: startText),
+                style: GoogleFonts.poppins(fontSize: 12.sp),
                 decoration: InputDecoration(
                   labelText:
                       provider.typeDay == 1 ? 'Tanggal Izin' : 'Start Date',
-                  prefixIcon: const Icon(Icons.event),
+                  labelStyle: GoogleFonts.poppins(fontSize: 11.5.sp),
+                  prefixIcon: Icon(Icons.event, size: 18.r),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(10.r)),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
                 ),
               ),
             ),
           ),
         ),
         if (provider.typeDay == 2) ...[
-          const SpaceWidth(16),
+          SizedBox(width: 10.w),
           Expanded(
             child: InkWell(
               onTap: () => _selectDate(context, provider, false),
               child: IgnorePointer(
                 child: TextField(
                   controller: TextEditingController(text: endText),
+                  style: GoogleFonts.poppins(fontSize: 12.sp),
                   decoration: InputDecoration(
                     labelText: 'End Date',
-                    prefixIcon: const Icon(Icons.event_available),
+                    labelStyle: GoogleFonts.poppins(fontSize: 11.5.sp),
+                    prefixIcon: Icon(Icons.event_available, size: 18.r),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10.r),
                     ),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10.w, vertical: 12.h),
                   ),
                 ),
               ),
@@ -360,16 +418,17 @@ class _AddIzinPageState extends State<AddIzinPage> {
   Widget _buildReasonDropdown(IzinProvider provider) {
     return DropdownButtonFormField<String>(
       value: provider.selectedAlasanIzin,
-      hint: Text('-pilih alasan izin-', style: GoogleFonts.poppins()),
+      hint: Text('-pilih alasan izin-',
+          style: GoogleFonts.poppins(fontSize: 12.sp)),
+      style: GoogleFonts.poppins(fontSize: 12.5.sp, color: Colors.black),
       decoration: InputDecoration(
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
       ),
       items: provider.alasanIzinOption.map((String value) {
         return DropdownMenuItem<String>(
           value: value,
-          child: Text(value, style: GoogleFonts.poppins(fontSize: 14)),
+          child: Text(value, style: GoogleFonts.poppins(fontSize: 12.5.sp)),
         );
       }).toList(),
       onChanged: (newValue) {
@@ -382,9 +441,12 @@ class _AddIzinPageState extends State<AddIzinPage> {
     return TextField(
       controller: provider.descriptionController,
       maxLines: 3,
+      style: GoogleFonts.poppins(fontSize: 12.sp),
       decoration: InputDecoration(
         hintText: 'Tulis detail deskripsi izin...',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        hintStyle: GoogleFonts.poppins(fontSize: 11.5.sp, color: Colors.grey),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
+        contentPadding: EdgeInsets.all(12.r),
       ),
     );
   }
@@ -399,29 +461,29 @@ class _AddIzinPageState extends State<AddIzinPage> {
       children: [
         InkWell(
           onTap: () => _showAttachmentOptions(context, provider),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10.r),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(12.r),
             decoration: BoxDecoration(
                 color: AppColors.light.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(10.r)),
             child: Row(
               children: [
-                const Icon(Icons.cloud_upload_rounded,
-                    color: AppColors.primary),
-                const SpaceWidth(12),
+                Icon(Icons.cloud_upload_rounded,
+                    color: AppColors.primary, size: 20.r),
+                SizedBox(width: 10.w),
                 Expanded(
                   child: Text(
                     provider.selectedFileName ??
                         'Pilih file lampiran (PDF/Gambar)',
-                    style: GoogleFonts.poppins(fontSize: 14),
+                    style: GoogleFonts.poppins(fontSize: 11.5.sp),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (provider.selectedFileName != null)
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.red),
+                    icon: Icon(Icons.close, color: AppColors.red, size: 18.r),
                     onPressed: () => provider.removeAttachment(),
                   )
               ],
@@ -429,12 +491,12 @@ class _AddIzinPageState extends State<AddIzinPage> {
           ),
         ),
         if (provider.selectedFile != null && isImage) ...[
-          const SpaceHeight(12),
+          SizedBox(height: 10.h),
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10.r),
             child: Image.file(
               provider.selectedFile!,
-              height: 150,
+              height: 140.h,
               width: double.infinity,
               fit: BoxFit.cover,
             ),
@@ -461,7 +523,8 @@ class _AddIzinPageState extends State<AddIzinPage> {
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(message, style: GoogleFonts.poppins()),
+                content:
+                    Text(message, style: GoogleFonts.poppins(fontSize: 12.sp)),
                 backgroundColor: AppColors.green,
               ),
             );
@@ -474,7 +537,8 @@ class _AddIzinPageState extends State<AddIzinPage> {
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(errorMessage, style: GoogleFonts.poppins()),
+                content: Text(errorMessage,
+                    style: GoogleFonts.poppins(fontSize: 12.sp)),
                 backgroundColor: AppColors.red,
               ),
             );
@@ -489,27 +553,28 @@ class _AddIzinPageState extends State<AddIzinPage> {
       builder: (context, state) {
         return SizedBox(
           width: double.infinity,
+          height: 48.h,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: valid ? AppColors.primary : Colors.grey,
-              padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(12.r)),
+              elevation: 0,
             ),
             onPressed: (_isLoadingSubmit || !valid)
                 ? null
                 : () => _submitIzinRequest(provider),
             child: _isLoadingSubmit
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
+                ? SizedBox(
+                    height: 18.r,
+                    width: 18.r,
+                    child: const CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2),
                   )
                 : Text(
                     'Ajukan Permohonan Izin',
                     style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 13.5.sp,
                         fontWeight: FontWeight.w600,
                         color: Colors.white),
                   ),

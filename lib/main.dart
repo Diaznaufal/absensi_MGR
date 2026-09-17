@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/data/datasources/attendance_remote_datasource.dart';
 import 'package:flutter_absensi_app/data/datasources/payroll_remote_datasource.dart';
 import 'package:flutter_absensi_app/data/datasources/auth_remote_datasource.dart';
@@ -41,7 +42,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:month_year_picker/month_year_picker.dart';
-
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'core/core.dart';
@@ -80,129 +80,139 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => LoginBloc(AuthRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => LogoutBloc(AuthRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) =>
-              UpdateUserRegisterFaceBloc(AuthRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => GetCompanyBloc(AttendanceRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => IsCheckedinBloc(AttendanceRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) =>
-              CheckinAttendanceBloc(AttendanceRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) =>
-              CheckoutAttendanceBloc(AttendanceRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => AddDayoffBloc(DayOffRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => GetDayoffBloc(DayOffRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) =>
-              GetAttendanceByDateBloc(AttendanceRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => CreateLeaveBloc(LeaveRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => CreateOvertimeBloc(OvertimeRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => GetOvertimesBloc(OvertimeRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => LeaveTypeBloc(LeaveRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => LeaveBalanceBloc(LeaveRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => CreateIzinBloc(IzinRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => GetAllLeavesBloc(LeaveRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => CheckQrBloc(QrAbsenRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => GetQrcodeCheckinBloc(),
-        ),
-        BlocProvider(
-          create: (context) => GetQrcodeCheckoutBloc(),
-        ),
-        BlocProvider(
-          create: (context) => GetUserBloc(UserRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => UpdateUserBloc(UserRemoteDatasource()),
-        ),
-        BlocProvider(
-          create: (context) => DashboardPayrollBloc(),
-        ),
-        BlocProvider(
-          create: (context) => PayrollHistoryBloc(),
-        ),
-        BlocProvider(
-          create: (context) => PengaduanBloc(PengaduanRemoteDatasource())
-            ..add(GetProductsEvent()),
-        ),
-        ChangeNotifierProvider(create: (_) => PengaduanProvider()),
-        ChangeNotifierProvider(create: (_) => LeaveProvider()),
-        ChangeNotifierProvider(create: (_) => IzinProvider()),
-        ChangeNotifierProvider(create: (_) => OvertimeProvider()),
-        ChangeNotifierProvider(create: (_) => LiburkaryawanProvider()),
-      ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-          MonthYearPickerLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('id'),
-          Locale('en'),
-        ],
-        title: 'GeoFence Attendance',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
-          dividerTheme:
-              DividerThemeData(color: AppColors.light.withValues(alpha: 0.5)),
-          dialogTheme: const DialogThemeData(elevation: 0),
-          textTheme: GoogleFonts.poppinsTextTheme(
-            Theme.of(context).textTheme,
-          ),
-          appBarTheme: AppBarTheme(
-            centerTitle: true,
-            backgroundColor: AppColors.primary,
-            elevation: 0,
-            titleTextStyle: GoogleFonts.poppins(
-              color: AppColors.black,
-              fontSize: 20.0,
-              fontWeight: FontWeight.w600,
+    return ScreenUtilInit(
+      designSize: const Size(360, 750),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MultiProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => LoginBloc(AuthRemoteDatasource()),
             ),
+            BlocProvider(
+              create: (context) => LogoutBloc(AuthRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  UpdateUserRegisterFaceBloc(AuthRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => GetCompanyBloc(AttendanceRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  IsCheckedinBloc(AttendanceRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  CheckinAttendanceBloc(AttendanceRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  CheckoutAttendanceBloc(AttendanceRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => AddDayoffBloc(DayOffRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => GetDayoffBloc(DayOffRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  GetAttendanceByDateBloc(AttendanceRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => CreateLeaveBloc(LeaveRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  CreateOvertimeBloc(OvertimeRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => GetOvertimesBloc(OvertimeRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => LeaveTypeBloc(LeaveRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => LeaveBalanceBloc(LeaveRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => CreateIzinBloc(IzinRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => GetAllLeavesBloc(LeaveRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => CheckQrBloc(QrAbsenRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => GetQrcodeCheckinBloc(),
+            ),
+            BlocProvider(
+              create: (context) => GetQrcodeCheckoutBloc(),
+            ),
+            BlocProvider(
+              create: (context) => GetUserBloc(UserRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => UpdateUserBloc(UserRemoteDatasource()),
+            ),
+            BlocProvider(
+              create: (context) => DashboardPayrollBloc(),
+            ),
+            BlocProvider(
+              create: (context) => PayrollHistoryBloc(),
+            ),
+            BlocProvider(
+              create: (context) => PengaduanBloc(PengaduanRemoteDatasource())
+                ..add(GetProductsEvent()),
+            ),
+            ChangeNotifierProvider(create: (_) => PengaduanProvider()),
+            ChangeNotifierProvider(create: (_) => LeaveProvider()),
+            ChangeNotifierProvider(create: (_) => IzinProvider()),
+            ChangeNotifierProvider(create: (_) => OvertimeProvider()),
+            ChangeNotifierProvider(create: (_) => LiburkaryawanProvider()),
+          ],
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              MonthYearPickerLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('id'),
+              Locale('en'),
+            ],
+            title: 'GeoFence Attendance',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
+              dividerTheme: DividerThemeData(
+                  color: AppColors.light.withValues(alpha: 0.5)),
+              dialogTheme: const DialogThemeData(elevation: 0),
+              textTheme: GoogleFonts.poppinsTextTheme(
+                Theme.of(context).textTheme,
+              ),
+              appBarTheme: AppBarTheme(
+                centerTitle: true,
+                backgroundColor: AppColors.primary,
+                elevation: 0,
+                titleTextStyle: GoogleFonts.poppins(
+                  color: AppColors.black,
+                  fontSize: 20.0,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            home: child,
           ),
-        ),
-        home: const SplashPage(),
-      ),
+        );
+      },
+      child: const SplashPage(),
     );
   }
 }
@@ -214,17 +224,14 @@ class KustomPesanIndonesia implements timeago.LookupMessages {
   @override
   String prefixFromNow() => '';
 
-  // Dikosongkan agar tidak menambahkan kata di belakang kalimat default "Baru saja"
   @override
   String suffixAgo() => '';
   @override
   String suffixFromNow() => 'dari sekarang';
 
-  // Jika waktu berada di bawah 1 menit, otomatis menampilkan teks ini saja
   @override
   String lessThanOneMinute(int seconds) => 'Baru saja';
 
-  // Menambahkan teks penunjuk waktu lampau secara manual di setiap kondisi unit waktu
   @override
   String aboutAMinute(int minutes) => '1 menit lalu';
   @override

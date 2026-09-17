@@ -26,7 +26,6 @@ class PayrollPdfService {
 
     String maskNip(String? nip) {
       if (nip == null || nip.isEmpty) return '-';
-      // Membersihkan teks tambahan jika ada format bawaan ": " atau spasi
       String cleanNip = nip.replaceAll(RegExp(r'[:\s]'), '');
       if (cleanNip.length < 8) return cleanNip;
 
@@ -52,8 +51,10 @@ class PayrollPdfService {
                     child: pw.Opacity(
                         opacity: 0.1,
                         child: pw.Image(logoKantor, height: 350, width: 450)))),
+            // Padding dinormalkan agar teks tidak terpotong di tepi kiri kertas
             pw.Container(
-              padding: const pw.EdgeInsets.fromLTRB(-10, 5, -10, 5),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -115,7 +116,7 @@ class PayrollPdfService {
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // Kolom Kiri: List Penghasilan Dinamis (.map)
+                      // Kolom Kiri: List Penghasilan Dinamis
                       pw.Expanded(
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -126,13 +127,10 @@ class PayrollPdfService {
                                     fontSize: 11,
                                     color: PdfColors.green)),
                             pw.SizedBox(height: 6),
-
-                            // Melakukan mapping objek dari List<PayrollItem> model Anda
                             if (detail.penghasilan != null)
                               ...detail.penghasilan!.map((item) =>
                                   _buildRincianRow(item.label ?? "-",
                                       item.formatted ?? "Rp 0", fontPoppins)),
-
                             pw.Divider(thickness: 0.5),
                             _buildRincianRow(
                                 "Total Penghasilan",
@@ -142,9 +140,9 @@ class PayrollPdfService {
                           ],
                         ),
                       ),
-                      pw.SizedBox(width: 30), // Jarak pemisah antar kolom
+                      pw.SizedBox(width: 30),
 
-                      // Kolom Kanan: List Potongan Dinamis (.map)
+                      // Kolom Kanan: List Potongan Dinamis
                       pw.Expanded(
                         child: pw.Column(
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -158,7 +156,6 @@ class PayrollPdfService {
                             if (detail.potongan != null)
                               ...detail.potongan!.map((item) {
                                 String labelText = item.label ?? "-";
-                                // Mencocokkan data totalAbsen dari objek Kehadiran di model
                                 if (labelText.toLowerCase().contains('absen') ==
                                         true &&
                                     detail.kehadiran != null) {
@@ -205,7 +202,6 @@ class PayrollPdfService {
       ),
     );
 
-    // Membuka Print & Save Preview bawaan HP
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name:
@@ -213,7 +209,6 @@ class PayrollPdfService {
     );
   }
 
-  // Generator Baris Rincian Teks Komponen
   static pw.Widget _buildRincianRow(String label, String value, pw.Font font) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),

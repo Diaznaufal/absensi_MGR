@@ -1,30 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/data/datasources/attendance_remote_datasource.dart';
 import 'package:flutter_absensi_app/data/models/response/attendance_response_model.dart';
 import 'package:flutter_absensi_app/presentation/history/pages/detail_history_page.dart';
 import 'package:flutter_absensi_app/presentation/history/widgets/riwayat_absensi.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:http/http.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:month_year_picker/month_year_picker.dart';
 import '../pages/schadule_kerja.dart';
 
-import '../../../core/core.dart';
-
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
   @override
-  State<HistoryPage> createState() => _HistoryPageState();
+  State<HistoryPage> createState() => HistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
+class HistoryPageState extends State<HistoryPage> {
   DateTime _selectedDate = DateTime.now();
-
   final _datasource = AttendanceRemoteDatasource();
 
-  // Fungsi helper teks motivasi dinamis mengikuti persentase
   String getMotivationText(double percentageValue) {
     int percent = (percentageValue * 100).toInt();
     if (percent >= 0 && percent <= 20) {
@@ -44,7 +39,6 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<AttendanceResponseModel> fetchAttendanceHistory() async {
-    // Menggunakan variabel state _selectedDate agar dinamis mengikuti filter picker
     final String bulan = _selectedDate.month.toString().padLeft(2, '0');
     final String tahun = _selectedDate.year.toString();
 
@@ -70,6 +64,14 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
+  // Method ini dibuat public agar bisa di-trigger dari MainPage saat tab berpindah
+  Future<void> refreshData() async {
+    if (mounted) {
+      setState(() {});
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,11 +83,17 @@ class _HistoryPageState extends State<HistoryPage> {
       body: Container(
         decoration: const BoxDecoration(color: Color(0xBAE7E8EC)),
         child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(child: _buildAttendanceList()),
-            ],
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                children: [
+                  _buildHeader(context),
+                  Expanded(child: _buildAttendanceList()),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -96,7 +104,7 @@ class _HistoryPageState extends State<HistoryPage> {
     return Container(
       decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         child: Row(
           children: [
             Expanded(
@@ -106,7 +114,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   Text(
                     'Riwayat',
                     style: GoogleFonts.poppins(
-                      fontSize: 24,
+                      fontSize: 22.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
@@ -114,7 +122,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   Text(
                     DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate),
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 13.sp,
                       color: Colors.white.withOpacity(0.8),
                     ),
                   ),
@@ -124,19 +132,20 @@ class _HistoryPageState extends State<HistoryPage> {
             GestureDetector(
               onTap: () => _selectDate(context),
               child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.2)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: Colors.white.withOpacity(0.2)),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(8.r),
+                  child: Icon(
+                    Icons.calendar_today_rounded,
+                    size: 18.r,
+                    color: Colors.white,
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.calendar_today_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                  )),
+                ),
+              ),
             ),
           ],
         ),
@@ -144,14 +153,9 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Future<void> _refreshData() async {
-    setState(() {});
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-  }
-
   Widget _buildAttendanceList() {
     return RefreshIndicator(
-      onRefresh: _refreshData,
+      onRefresh: refreshData,
       child: FutureBuilder<AttendanceResponseModel>(
         future: fetchAttendanceHistory(),
         builder: (context, snapshot) {
@@ -160,13 +164,17 @@ class _HistoryPageState extends State<HistoryPage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text("Terjadi kesalahan : ${snapshot.error}"));
+            return Center(
+                child: Text("Terjadi kesalahan : ${snapshot.error}",
+                    style: TextStyle(fontSize: 13.sp)));
           }
 
           if (!snapshot.hasData ||
               snapshot.data!.data == null ||
               snapshot.data!.data!.isEmpty) {
-            return const Center(child: Text('Data History Kosong'));
+            return Center(
+                child: Text('Data History Kosong',
+                    style: TextStyle(fontSize: 13.sp)));
           }
 
           final historiesAll = snapshot.data!.data!;
@@ -195,7 +203,6 @@ class _HistoryPageState extends State<HistoryPage> {
                 item.statusLabel?.toString().toLowerCase() ?? "";
             final String currentStatuss = item.status?.toString() ?? "";
 
-            // Lewati hari libur, minggu, atau tidak diketahui dari perhitungan hari kerja
             if (currentStatuss == '8' || label == 'Unknow') {
               countMinggu++;
               continue;
@@ -216,10 +223,8 @@ class _HistoryPageState extends State<HistoryPage> {
               continue;
             }
 
-            // 1. Hitung total jadwal kerja aktif dalam 1 bulan penuh (untuk persentase atas)
             totalKerjaSatuBulanPenuh++;
 
-            // Cek apakah tanggal item adalah hari esok/masa depan
             bool isMasaDepan = false;
             if (item.waktu != null) {
               final DateTime perbandinganTanggal = DateTime(
@@ -229,12 +234,10 @@ class _HistoryPageState extends State<HistoryPage> {
               }
             }
 
-            // Jika hari esok, skip hitungan statistik tiga kotak di bawah
             if (isMasaDepan) {
               continue;
             }
 
-            // 2. Hitung total hari kerja yang sudah berjalan sampai hari ini
             totalHariValidKerjaSampaiHariIni++;
 
             if (currentStatuss == "6" ||
@@ -250,27 +253,21 @@ class _HistoryPageState extends State<HistoryPage> {
                 countTerlambat++;
               }
             } else {
-              // Terhitung absen jika hari sudah berjalan/lewat tapi status bukan 6
               countAbsen++;
             }
           }
 
-          // Total presensi masuk (On Time + Terlambat)
           final int totalMasuk = countHadir + countTerlambat;
-
-          // Rumus persentase berdasarkan seluruh total jadwal kerja 1 bulan penuh
           final double persentaseKehadiran = totalKerjaSatuBulanPenuh > 0
               ? (totalMasuk / totalKerjaSatuBulanPenuh)
               : 0.0;
 
           final int tahunAktif = _selectedDate.year;
-
           final bool isBulanSekarang =
               (hariIni.month == bulanAktif && hariIni.year == tahunAktif);
           List<dynamic> histories = [];
 
           if (isBulanSekarang) {
-            // Hanya masukkan data dari awal bulan berjalan SAMPAI HARI INI SAJA
             final List<dynamic> saringanTanggalSekarang =
                 historiesAll.where((item) {
               if (item.waktu == null) return false;
@@ -298,7 +295,6 @@ class _HistoryPageState extends State<HistoryPage> {
             }).toList();
             histories = histories.reversed.toList();
           } else {
-            // Logika 1 minggu terakhir untuk bulan yang sudah terlewat
             final DateTime tanggalAkhirBulan =
                 DateTime(tahunAktif, bulanAktif + 1, 0);
             final DateTime akhirPencarian = DateTime(tanggalAkhirBulan.year,
@@ -338,25 +334,23 @@ class _HistoryPageState extends State<HistoryPage> {
           }
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: EdgeInsets.fromLTRB(12.w, 10.h, 12.w, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // 1. Menggunakan totalKerjaSatuBulanPenuh untuk card persentase atas
                 _buildPresencePercentageCard(
                     totalMasuk, totalKerjaSatuBulanPenuh, persentaseKehadiran),
-                const SizedBox(height: 14),
-                // 2. Menggunakan totalHariValidKerjaSampaiHariIni untuk card statistik bawah
+                SizedBox(height: 10.h),
                 _buildStatisticCard(countHadir, countAbsen, countTerlambat,
                     totalHariValidKerjaSampaiHariIni),
-                const SizedBox(height: 14),
+                SizedBox(height: 10.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Riwayat Absensi',
                       style: GoogleFonts.poppins(
-                        fontSize: 16,
+                        fontSize: 15.sp,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF253B80),
                       ),
@@ -371,7 +365,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
-                        minimumSize: const Size(10, 30),
+                        minimumSize: Size(10.w, 30.h),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         alignment: Alignment.centerRight,
                         splashFactory: NoSplash.splashFactory,
@@ -380,7 +374,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       child: Text(
                         'Lihat Semua',
                         style: GoogleFonts.poppins(
-                          fontSize: 12,
+                          fontSize: 12.sp,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF4263F5),
                         ),
@@ -388,21 +382,23 @@ class _HistoryPageState extends State<HistoryPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
                 if (histories.isEmpty)
-                  const Expanded(
+                  Expanded(
                     child: Center(
-                      child:
-                          Text('Belum ada riwayat absensi untuk periode ini.'),
+                      child: Text(
+                        'Belum ada riwayat absensi untuk periode ini.',
+                        style: TextStyle(fontSize: 12.sp),
+                      ),
                     ),
                   )
                 else
                   Expanded(
                     child: ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 5),
                       shrinkWrap: true,
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: histories.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 5),
+                      separatorBuilder: (_, __) => SizedBox(height: 8.h),
                       itemBuilder: (_, index) {
                         final item = histories[index];
                         final String backupTanggal = item.waktu != null
@@ -421,7 +417,6 @@ class _HistoryPageState extends State<HistoryPage> {
                                 item.statusLabel?.toString().toLowerCase() ??
                                     "";
 
-                            // 1. Validasi Record Absen Hadir (Status 6)
                             if (currentStatus == "6" ||
                                 label == "sudah absen" ||
                                 label == "on time") {
@@ -434,27 +429,22 @@ class _HistoryPageState extends State<HistoryPage> {
                               }
                             }
 
-                            // 2. Validasi Hari Minggu (Status 8)
                             if (currentStatus == "8" || label == "Unknown") {
                               return AttendanceStatus.minggu;
                             }
 
-                            // 3. Validasi Tanggal Merah / Libur Nasional (Status 3)
                             if (currentStatus == "3" || label == "Libur") {
                               return AttendanceStatus.libur;
                             }
 
-                            // 4. Validasi Day Off (Status 2)
                             if (currentStatus == "2" || label == "day off") {
                               return AttendanceStatus.dayoff;
                             }
 
-                            // 5. Validasi Cuti / Izin
                             if (currentStatus == "4" || label == "Cuti") {
                               return AttendanceStatus.cuti;
                             }
 
-                            // 6. Jika tidak masuk semua kondisi di atas, barulah Mangkir (Absen)
                             return AttendanceStatus.absent;
                           }(),
                           lateMinutes: () {
@@ -494,7 +484,6 @@ class _HistoryPageState extends State<HistoryPage> {
                             return 0;
                           }(),
                           ontap: () {
-                            print('ID Attendance: ${item.idAttendance}');
                             final String currentStatus =
                                 item.status?.toString() ?? "";
                             final String label =
@@ -524,10 +513,9 @@ class _HistoryPageState extends State<HistoryPage> {
                                   duration: Duration(seconds: 2),
                                 ),
                               );
-                              return; // Stop di sini, tidak masuk ke DetailHistoryPage
+                              return;
                             }
 
-                            // 5. Jika lolos validasi, baru navigasi
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -557,16 +545,16 @@ class _HistoryPageState extends State<HistoryPage> {
           Text(
             'Persentase kehadiran (Bulanan)',
             style: GoogleFonts.poppins(
-              fontSize: 16,
+              fontSize: 14.sp,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF253B80),
             ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 8.h),
           Row(
             children: [
               _CirclePercent(progress: percent),
-              const SizedBox(width: 16),
+              SizedBox(width: 14.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,7 +562,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     Text(
                       '$masuk dari $total hari kerja',
                       style: GoogleFonts.poppins(
-                        fontSize: 18,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF2A3C7A),
                       ),
@@ -582,31 +570,33 @@ class _HistoryPageState extends State<HistoryPage> {
                     Text(
                       'Target mingguan 95%',
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: 11.sp,
                         color: const Color(0xFF7A86A8),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 6.h),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.r),
                       child: LinearProgressIndicator(
                         value: percent,
-                        minHeight: 5,
+                        minHeight: 5.h,
                         backgroundColor: const Color(0xFFE6EAF4),
                         valueColor: const AlwaysStoppedAnimation(
                           Color(0xFF4263F5),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 6.h),
                     Text(
                       getMotivationText(percent),
                       style: GoogleFonts.poppins(
-                        fontSize: 10,
+                        fontSize: 9.5.sp,
                         color: const Color(0xFF939DB8),
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -637,14 +627,14 @@ class _HistoryPageState extends State<HistoryPage> {
               Text(
                 'Statistik kehadiran',
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF253B80),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          SizedBox(height: 6.h),
           Row(
             children: [
               Expanded(
@@ -658,7 +648,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   subtitleColor: const Color(0xFF1BAA62),
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 8.w),
               Expanded(
                 child: _StatItem(
                   title: 'Tidak Hadir',
@@ -670,7 +660,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   subtitleColor: const Color(0xFFFF476C),
                 ),
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 8.w),
               Expanded(
                 child: _StatItem(
                   title: 'Terlambat',
@@ -692,10 +682,10 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget _buildMainCard({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14.r),
         border: Border.all(color: const Color(0xFFE9EDF7)),
       ),
       child: child,
@@ -711,28 +701,31 @@ class _CirclePercent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 75,
-      height: 75,
+      width: 65.w,
+      height: 65.w,
       child: Stack(
         alignment: Alignment.center,
         children: [
           SizedBox(
-            width: 90,
-            height: 90,
+            width: 65.w,
+            height: 65.w,
             child: CircularProgressIndicator(
               value: progress,
-              strokeWidth: 5,
+              strokeWidth: 5.r,
               backgroundColor: const Color(0xFFE8ECF6),
               valueColor:
                   const AlwaysStoppedAnimation<Color>(Color(0xFF4263F5)),
             ),
           ),
-          Text(
-            '${(progress * 100).toInt()}%',
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF243778),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '${(progress * 100).toInt()}%',
+              style: GoogleFonts.poppins(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF243778),
+              ),
             ),
           ),
         ],
@@ -763,37 +756,44 @@ class _StatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Column(
         children: [
-          Icon(icon, color: iconColor, size: 18),
-          const SizedBox(height: 7),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF243778),
-              fontSize: 25,
-              fontWeight: FontWeight.w700,
-              height: 1,
+          Icon(icon, color: iconColor, size: 18.r),
+          SizedBox(height: 4.h),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF243778),
+                fontSize: 22.sp,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
             ),
           ),
-          const SizedBox(height: 7),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              color: const Color(0xFF98A1BC),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+          SizedBox(height: 4.h),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF98A1BC),
+                fontSize: 9.5.sp,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 2.h),
           Text(
             subtitle,
             style: GoogleFonts.poppins(
+              fontSize: 10.sp,
               color: subtitleColor,
               fontWeight: FontWeight.w700,
             ),

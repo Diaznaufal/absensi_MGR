@@ -50,15 +50,15 @@ class NotifikasiCard extends StatelessWidget {
                 offset: Offset(0, 3))
           ]),
       child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 15),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12),
         leading: Container(
-          padding: EdgeInsets.all(12),
+          padding: EdgeInsets.all(10),
           decoration: BoxDecoration(
               color: notif.iconBg, borderRadius: BorderRadius.circular(12)),
           child: Icon(
             notif.icon,
             color: notif.color,
-            size: 26,
+            size: 24,
           ),
         ),
         title: Row(

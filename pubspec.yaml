@@ -45,7 +45,7 @@ dependencies:
   google_fonts: ^6.1.0
   google_maps_flutter: ^2.6.1
   image: ^4.5.4
-  tflite_flutter: ^0.11.0
+  
   google_mlkit_face_detection: ^0.13.2
   google_mlkit_commons: ^0.11.0
   camera: ^0.11.2
@@ -70,6 +70,7 @@ dependencies:
   fdottedline_nullsafety: ^2.0.1
   flutter_map: ^8.3.1
   pdf: ^3.10.10
+  flutter_screenutil: ^5.9.3
   printing: ^5.11.0
 dependency_overrides:
   intl: ^0.20.0

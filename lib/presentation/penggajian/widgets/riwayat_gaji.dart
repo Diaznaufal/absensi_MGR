@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../data/models/response/payroll_response_model.dart';
 import 'package:intl/intl.dart';
@@ -27,27 +28,29 @@ class RiwayatGajiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(8.r),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(8.r),
         ),
         child: Row(
           children: [
             Container(
-              width: 35,
-              height: 35,
+              width: 35.r,
+              height: 35.r,
               decoration: BoxDecoration(
-                  color: const Color(0xC2D8E4FD),
-                  borderRadius: BorderRadius.circular(5)),
-              child: const Icon(
+                color: const Color(0xC2D8E4FD),
+                borderRadius: BorderRadius.circular(5.r),
+              ),
+              child: Icon(
                 Icons.feed_outlined,
-                color: Color(0xFF0151E7),
-                size: 22,
+                color: const Color(0xFF0151E7),
+                size: 20.r,
               ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,37 +58,47 @@ class RiwayatGajiCard extends StatelessWidget {
                   Text(
                     formatBulan(data.monthLabel),
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 13.sp,
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     data.tanggalGajianLabel ?? "-",
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
+                      fontSize: 10.5.sp,
+                      color: Colors.grey[600],
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
+            SizedBox(width: 8.w),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  data.gajiBersihFormatted ?? "Rp 0",
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1F8B4D),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    data.gajiBersihFormatted ?? "Rp 0",
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1F8B4D),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 8),
-            const Icon(
+            SizedBox(width: 6.w),
+            Icon(
               Icons.keyboard_arrow_right,
-              size: 20,
-            )
+              size: 20.r,
+              color: Colors.grey[700],
+            ),
           ],
         ),
       ),

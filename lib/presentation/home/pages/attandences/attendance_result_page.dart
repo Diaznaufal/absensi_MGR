@@ -166,30 +166,45 @@ class _RecognitionResultPageState extends State<AttendanceResultPage>
     companyState.maybeWhen(
       success: (company) {
         if (latitude != null && longitude != null) {
-          final companyLat = double.tryParse(company.latitude ?? '0') ?? 0.0;
-          final companyLong = double.tryParse(company.longitude ?? '0') ?? 0.0;
-          final radiusKm = double.tryParse(company.radiusKm ?? '0') ?? 0.0;
+          final double companyLat =
+              double.tryParse(company.latitude?.toString() ?? '0') ?? 0.0;
+          final double companyLong =
+              double.tryParse(company.longitude?.toString() ?? '0') ?? 0.0;
+          final double radiusKm =
+              double.tryParse(company.radiusKm?.toString() ?? '0') ?? 0.0;
 
-          distance = RadiusCalculate.calculateDistance(
-            latitude!,
-            longitude!,
-            companyLat,
-            companyLong,
-          );
+          // Cek apakah company memiliki data polygon
+          final String? polygonRaw = (company as dynamic).polygon?.toString();
+          final List<List<double>> polygonPoints =
+              RadiusCalculate.parsePolygon(polygonRaw);
 
-          setState(() {
-            isWithinRadius = distance <= radiusKm;
-          });
-
-          debugPrint(
-              'Distance: $distance km, Radius: $radiusKm km, Within: $isWithinRadius');
+          if (polygonPoints.isNotEmpty) {
+            // Validasi menggunakan Polygon jika tersedia
+            final bool inside = RadiusCalculate.isPointInPolygon(
+              latitude!,
+              longitude!,
+              polygonPoints,
+              toleranceMeters: 35.0,
+            );
+            setState(() {
+              isWithinRadius = inside;
+            });
+          } else {
+            // Fallback ke Radius KM lingkaran jika tidak ada polygon
+            final double dist = RadiusCalculate.calculateDistance(
+              latitude!,
+              longitude!,
+              companyLat,
+              companyLong,
+            );
+            setState(() {
+              distance = dist;
+              isWithinRadius = dist <= radiusKm;
+            });
+          }
         }
       },
-      orElse: () {
-        setState(() {
-          isWithinRadius = false;
-        });
-      },
+      orElse: () {},
     );
   }
 

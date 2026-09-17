@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/presentation/penggajian/pages/payroll_pdf_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,84 +40,95 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
     return Scaffold(
       backgroundColor: const Color(0xF6EFEFF5),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: const Color(0xFF0A49B7),
         elevation: 0,
-        toolbarHeight: 60,
+        toolbarHeight: 56.h,
         automaticallyImplyLeading: false,
         title: Row(
           children: [
             InkWell(
               onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.black, size: 22),
+              child: Icon(Icons.arrow_back_ios_new,
+                  color: Colors.white, size: 20.r),
             ),
-            const SizedBox(width: 20),
+            SizedBox(width: 16.w),
             Text(
               'Slip Gaji',
               style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
           ],
         ),
       ),
-      body: BlocBuilder<PayrollHistoryBloc, PayrollHistoryState>(
-        builder: (context, state) {
-          if (state is PayrollHistoryLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state is PayrollDetailLoaded) {
-            final detail = state.detail;
-            return _buildContent(detail);
-          } else if (state is PayrollHistoryError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  state.message,
-                  style: GoogleFonts.poppins(
-                      color: Colors.red, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          return const SizedBox();
-        },
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: BlocBuilder<PayrollHistoryBloc, PayrollHistoryState>(
+              builder: (context, state) {
+                if (state is PayrollHistoryLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (state is PayrollDetailLoaded) {
+                  final detail = state.detail;
+                  return _buildContent(detail);
+                } else if (state is PayrollHistoryError) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.r),
+                      child: Text(
+                        state.message,
+                        style: GoogleFonts.poppins(
+                            color: Colors.red,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildContent(PayrollData detail) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: EdgeInsets.all(12.r),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeaderPeriode(detail),
-          const SizedBox(height: 16),
+          SizedBox(height: 14.h),
           _buildDataKaryawan(detail.karyawan),
-          const SizedBox(height: 20),
+          SizedBox(height: 14.h),
           _buildCardPenghasilan(
               detail.penghasilan, detail.ringkasan?.totalPenghasilanFormatted),
-          const SizedBox(height: 20),
+          SizedBox(height: 14.h),
           _buildCardPotongan(detail.potongan,
               detail.ringkasan?.totalPotonganFormatted, detail.kehadiran),
-          const SizedBox(height: 20),
+          SizedBox(height: 14.h),
           _buildCardPerhitunganBersih(detail.ringkasan),
-          const SizedBox(height: 20),
+          SizedBox(height: 16.h),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 46.h,
             child: ElevatedButton.icon(
               onPressed: () {
                 PayrollPdfService.generateSlipGaji(detail);
               },
-              icon: const Icon(Icons.download, color: Colors.blue),
+              icon: Icon(Icons.download, color: Colors.blue, size: 18.r),
               label: Text(
                 'Download Slip Gaji (PDF)',
                 style: GoogleFonts.poppins(
+                  fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
                   color: Colors.blue,
                 ),
@@ -126,11 +138,12 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
                 elevation: 0,
                 side: const BorderSide(color: Color(0xFFBFDBFE), width: 1),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
               ),
             ),
           ),
+          SizedBox(height: 10.h),
         ],
       ),
     );
@@ -149,16 +162,16 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 5.r,
+            offset: Offset(0, 3.h),
           ),
         ],
       ),
@@ -167,40 +180,42 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: EdgeInsets.all(8.r),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
-                child: const Icon(Icons.calendar_today_rounded,
-                    color: Colors.blue),
+                child: Icon(Icons.calendar_today_rounded,
+                    color: Colors.blue, size: 20.r),
               ),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatBulan(detail.periodeGajian),
-                    style: GoogleFonts.poppins(
-                        fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    detail.tanggalGajianLabel ?? "Belum tersedia",
-                    style:
-                        GoogleFonts.poppins(fontSize: 10, color: Colors.grey),
-                  ),
-                ],
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatBulan(detail.periodeGajian),
+                      style: GoogleFonts.poppins(
+                          fontSize: 14.sp, fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      detail.tanggalGajianLabel ?? "Belum tersedia",
+                      style: GoogleFonts.poppins(
+                          fontSize: 10.sp, color: Colors.grey),
+                    ),
+                  ],
+                ),
               )
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 12.h),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: 10.h),
             decoration: BoxDecoration(
               color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12.r),
               border:
                   Border.all(color: const Color(0xFFBFDBFE).withOpacity(0.5)),
             ),
@@ -209,17 +224,20 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
                 Text(
                   'Gaji Bersih',
                   style: GoogleFonts.poppins(
-                      fontSize: 13,
+                      fontSize: 11.sp,
                       color: Colors.blue,
                       fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  detail.ringkasan?.gajiBersihFormatted ?? "Rp 0",
-                  style: GoogleFonts.poppins(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1D4ED8)),
+                SizedBox(height: 4.h),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    detail.ringkasan?.gajiBersihFormatted ?? "Rp 0",
+                    style: GoogleFonts.poppins(
+                        fontSize: 22.sp,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1D4ED8)),
+                  ),
                 ),
               ],
             ),
@@ -232,16 +250,16 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
   // 3. Widget Detail Data Karyawan
   Widget _buildDataKaryawan(Karyawan? karyawan) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 5.r,
+            offset: Offset(0, 3.h),
           ),
         ],
       ),
@@ -250,10 +268,10 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
         children: [
           Text(
             'Data Karyawan',
-            style:
-                GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w700),
+            style: GoogleFonts.poppins(
+                fontSize: 12.5.sp, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 8.h),
           _buildRowDetail('NIP', ':  ${karyawan?.nip ?? "-"}'),
           _buildRowDetail('Nama', karyawan?.name ?? "-"),
           _buildRowDetail('Divisi', karyawan?.divisi ?? "-"),
@@ -263,74 +281,77 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
     );
   }
 
-  // 4. Widget Bagian Penghasilan Dinamis (Mapping List)
+  // 4. Widget Bagian Penghasilan Dinamis
   Widget _buildCardPenghasilan(
       List<PayrollItem>? listPenghasilan, String? totalFormatted) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 5.r,
+            offset: Offset(0, 3.h),
           ),
         ],
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Column(
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: EdgeInsets.all(5.r),
                       decoration: BoxDecoration(
                           color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.wallet_rounded,
-                          color: Colors.green, size: 18),
+                          borderRadius: BorderRadius.circular(6.r)),
+                      child: Icon(Icons.wallet_rounded,
+                          color: Colors.green, size: 16.r),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8.w),
                     Text('PENGHASILAN',
                         style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11.sp,
                             fontWeight: FontWeight.w700,
                             color: Colors.green)),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 10.h),
                 if (listPenghasilan != null)
                   ...listPenghasilan.map((item) => _buildRowDetail(
                       item.label ?? "-", item.formatted ?? "Rp 0")),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 10.h),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
             decoration: BoxDecoration(
               color: const Color(0xFFDCFCE7),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total Penghasilan',
                     style: GoogleFonts.poppins(
-                        fontSize: 13,
+                        fontSize: 11.sp,
                         fontWeight: FontWeight.w600,
                         color: Colors.green)),
-                Text(totalFormatted ?? "Rp 0",
-                    style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.green)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(totalFormatted ?? "Rp 0",
+                      style: GoogleFonts.poppins(
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.green)),
+                ),
               ],
             ),
           )
@@ -342,44 +363,44 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
   Widget _buildCardPotongan(List<PayrollItem>? listPotongan,
       String? totalFormatted, Kehadiran? kehadiran) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 5.r,
+            offset: Offset(0, 3.h),
           ),
         ],
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Column(
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: EdgeInsets.all(5.r),
                       decoration: BoxDecoration(
                           color: const Color(0xFFFEE2E2),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.receipt_long_rounded,
-                          color: Colors.red, size: 18),
+                          borderRadius: BorderRadius.circular(6.r)),
+                      child: Icon(Icons.receipt_long_rounded,
+                          color: Colors.red, size: 16.r),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8.w),
                     Text('POTONGAN',
                         style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11.sp,
                             fontWeight: FontWeight.w700,
                             color: Colors.red)),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 10.h),
                 if (listPotongan != null)
                   ...listPotongan.map((item) {
                     String? subLabel;
@@ -394,26 +415,29 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 10.h),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
             decoration: BoxDecoration(
               color: const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total Potongan',
                     style: GoogleFonts.poppins(
-                        fontSize: 13,
+                        fontSize: 11.sp,
                         fontWeight: FontWeight.w600,
                         color: Colors.red)),
-                Text(totalFormatted ?? "Rp 0",
-                    style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.red)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(totalFormatted ?? "Rp 0",
+                      style: GoogleFonts.poppins(
+                          fontSize: 11.sp,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.red)),
+                ),
               ],
             ),
           )
@@ -424,16 +448,16 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
 
   Widget _buildCardPerhitunganBersih(Ringkasan? ringkasan) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(14.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(0.08),
             spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
+            blurRadius: 5.r,
+            offset: Offset(0, 3.h),
           ),
         ],
       ),
@@ -443,32 +467,35 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
           Text(
             'PERHITUNGAN GAJI BERSIH',
             style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 10.5.sp,
                 fontWeight: FontWeight.w700,
                 color: Colors.grey[700]),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 10.h),
           _buildRowDetail('Total Penghasilan',
               ringkasan?.totalPenghasilanFormatted ?? "Rp 0",
               isBoldLeft: true),
           _buildRowDetail(
               '- Total Potongan', ringkasan?.totalPotonganFormatted ?? "Rp 0",
               colorRight: Colors.red),
-          const Divider(height: 24, thickness: 1),
+          Divider(height: 18.h, thickness: 1),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Gaji Bersih',
                   style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 12.5.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.blue[800])),
-              Text(
-                ringkasan?.gajiBersihFormatted ?? "Rp 0",
-                style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.blue[700]),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  ringkasan?.gajiBersihFormatted ?? "Rp 0",
+                  style: GoogleFonts.poppins(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.blue[700]),
+                ),
               ),
             ],
           )
@@ -477,7 +504,7 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
     );
   }
 
-  // Helper Widget Tetap Sama
+  // Helper Widget Row Detail
   Widget _buildRowDetail(
     String leftText,
     String rightText, {
@@ -486,35 +513,45 @@ class _DetailPenggajianPageState extends State<DetailPenggajianPage> {
     bool isBoldLeft = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Text(
-                leftText,
-                style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.black87,
-                    fontWeight: isBoldLeft ? FontWeight.w600 : FontWeight.w400),
-              ),
-              if (subLeft != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  subLeft,
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: Colors.grey[500]),
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    leftText,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11.5.sp,
+                        color: Colors.black87,
+                        fontWeight:
+                            isBoldLeft ? FontWeight.w600 : FontWeight.w400),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ]
-            ],
+                if (subLeft != null) ...[
+                  SizedBox(width: 4.w),
+                  Text(
+                    subLeft,
+                    style: GoogleFonts.poppins(
+                        fontSize: 10.5.sp, color: Colors.grey[500]),
+                  ),
+                ]
+              ],
+            ),
           ),
-          Text(
-            rightText,
-            style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: colorRight ?? Colors.black),
+          SizedBox(width: 8.w),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              rightText,
+              style: GoogleFonts.poppins(
+                  fontSize: 11.5.sp,
+                  fontWeight: FontWeight.w500,
+                  color: colorRight ?? Colors.black),
+            ),
           ),
         ],
       ),

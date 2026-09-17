@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +18,7 @@ import 'attandences/camera_view_attendance_page.dart';
 
 import '../../../core/ml/recognition_embedding.dart';
 import '../../../core/ml/recognizer.dart';
+import '../../profile/bloc/get_user/get_user_bloc.dart';
 import '../bloc/update_user_register_face/update_user_register_face_bloc.dart';
 import 'main_page.dart';
 
@@ -50,6 +52,12 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
   bool isTakePicture = false;
   bool _isRegisterLoading = false;
   String _cameraKey = 'initial_camera_key';
+
+  img.Image? image;
+  img.Image? capturedImage;
+  List<double>? capturedEmbedding;
+  CameraImage? currentCameraImage;
+
   @override
   void initState() {
     super.initState();
@@ -86,7 +94,9 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
   }
 
   void _takePicture(CameraImage cameraImage) async {
-    if (_isDisposed) return;
+    if (_isDisposed || _isBusy) return;
+
+    _isBusy = true;
     log('🎯 _takePicture dipanggil dari kedipan sukses berkualitas');
 
     setState(() {
@@ -94,76 +104,90 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
       currentCameraImage = cameraImage;
     });
 
-    // Jalankan ekstraksi wajah secara aman karena posisi dipastikan pas dari kamera view
-    final inputImage = _inputImageFromCameraImage(cameraImage);
-    if (inputImage != null) {
-      final faces = await _faceDetector.processImage(inputImage);
-      if (faces.isNotEmpty) {
-        await performFaceRegistration(faces);
+    try {
+      final inputImage = _inputImageFromCameraImage(cameraImage);
+      if (inputImage != null) {
+        log('🔍 Memproses pemindaian wajah ML Kit...');
+        final faces = await _faceDetector.processImage(inputImage);
+        log('👤 Jumlah wajah terdeteksi: ${faces.length}');
+
+        if (faces.isNotEmpty) {
+          await performFaceRegistration(faces);
+        } else {
+          if (mounted) {
+            context.showError("Gagal memproses detail kontur wajah.");
+          }
+        }
       } else {
-        if (mounted) context.showError("Gagal memproses detail kontur wajah.");
+        log('❌ InputImage null, gagal mengonversi frame kamera.');
       }
+    } catch (e, stack) {
+      log('❌ Error pada _takePicture: $e');
+      log('📌 Stacktrace: $stack');
+    } finally {
+      _isBusy = false;
     }
   }
 
-  img.Image? image;
-  img.Image? capturedImage;
-  List<double>? capturedEmbedding;
-  CameraImage? currentCameraImage;
-
-  performFaceRegistration(List<Face> faces) async {
+  Future<void> performFaceRegistration(List<Face> faces) async {
     log('🔄 performFaceRegistration called with ${faces.length} faces');
     recognitions.clear();
 
     final CameraImage? imgFrame = currentCameraImage;
     if (imgFrame == null) {
+      log('❌ currentCameraImage null');
       return;
     }
 
     try {
-      image = convertNV21ToImage(imgFrame);
-      if (image == null) return;
-      image = img.copyRotate(
-        image!,
-        angle: _cameraLensDirection == CameraLensDirection.front ? 270 : 90,
-      );
+      log('🖼️ Mengonversi NV21 ke img.Image...');
+      final rawImage = convertNV21ToImage(imgFrame);
+      if (rawImage == null) {
+        log('❌ Gagal mengonversi NV21 ke img.Image');
+        if (mounted) context.showError("Gagal memproses gambar dari kamera.");
+        return;
+      }
 
       final Face face = faces.first;
       Rect faceRect = face.boundingBox;
 
-      final imgWidth = image!.width;
-      final imgHeight = image!.height;
+      final int rotateAngle =
+          _cameraLensDirection == CameraLensDirection.front ? 270 : 90;
 
-      final left = faceRect.left.toInt().clamp(0, imgWidth - 1);
-      final top = faceRect.top.toInt().clamp(0, imgHeight - 1);
-      final right = faceRect.right.toInt().clamp(left + 1, imgWidth);
-      final bottom = faceRect.bottom.toInt().clamp(top + 1, imgHeight);
+      final img.Image rotatedFullImage =
+          img.copyRotate(rawImage, angle: rotateAngle);
 
-      final cropWidth = right - left;
-      final cropHeight = bottom - top;
+      capturedImage = rotatedFullImage;
 
-      if (cropWidth <= 0 || cropHeight <= 0) return;
+      try {
+        final img.Image croppedFace = img.copyCrop(
+          rotatedFullImage,
+          x: faceRect.left.toInt().clamp(0, rotatedFullImage.width - 1),
+          y: faceRect.top.toInt().clamp(0, rotatedFullImage.height - 1),
+          width: faceRect.width.toInt().clamp(1, rotatedFullImage.width),
+          height: faceRect.height.toInt().clamp(1, rotatedFullImage.height),
+        );
 
-      final img.Image croppedFace = img.copyCrop(
-        image!,
-        x: left,
-        y: top,
-        width: cropWidth,
-        height: cropHeight,
-      );
-
-      final RecognitionEmbedding recognition = recognizer.recognize(
-        croppedFace,
-        face.boundingBox,
-      );
-
-      if (recognition.embedding.isNotEmpty && mounted) {
-        capturedImage = image;
+        final RecognitionEmbedding recognition = recognizer.recognize(
+          croppedFace,
+          face.boundingBox,
+        );
         capturedEmbedding = recognition.embedding;
+      } catch (e) {
+        log('⚠️ Recognizer error (diabaikan untuk pendaftaran gambar): $e');
+        capturedEmbedding = [];
+      }
+
+      if (mounted) {
+        log('🚀 Membuka _showConfirmationDialog()...');
         _showConfirmationDialog();
       }
-    } catch (e) {
-      log('❌ Error processing face crop: $e');
+    } catch (e, stack) {
+      log('❌ Error pada performFaceRegistration: $e');
+      log('📌 Stacktrace: $stack');
+      if (mounted) {
+        context.showError("Terjadi kesalahan saat memproses foto wajah.");
+      }
     }
   }
 
@@ -334,40 +358,79 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
     );
   }
 
+  // 🎨 PERBAIKAN KONVERSI: Mendukung NV21 (1-plane) & YUV420 (3-plane) secara presisi berwarna
   img.Image? convertNV21ToImage(CameraImage cameraImage) {
     try {
-      final width = cameraImage.width.toInt();
-      final height = cameraImage.height.toInt();
-      final yPlane = cameraImage.planes[0].bytes;
-      final uvPlane = cameraImage.planes[1].bytes;
-      final outImg = img.Image(height: height, width: width);
+      final width = cameraImage.width;
+      final height = cameraImage.height;
+      final outImg = img.Image(width: width, height: height);
 
-      for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-          final yIndex = y * width + x;
-          final uvIndex = ((y >> 1) * (width >> 1) + (x >> 1)) * 2;
+      // 1. Format NV21 / Single Plane (Perangkat Android CameraX Direct)
+      if (cameraImage.format.group == ImageFormatGroup.nv21 ||
+          cameraImage.planes.length == 1) {
+        final nv21Bytes = cameraImage.planes[0].bytes;
+        final int frameSize = width * height;
 
-          if (yIndex >= yPlane.length || uvIndex + 1 >= uvPlane.length)
-            continue;
+        for (int j = 0; j < height; j++) {
+          for (int i = 0; i < width; i++) {
+            final int yIndex = j * width + i;
+            final int uvIndex = frameSize + (j >> 1) * width + (i & ~1);
 
-          final yValue = yPlane[yIndex];
-          final uValue = uvPlane[uvIndex];
-          final vValue = uvPlane[uvIndex + 1];
+            if (yIndex >= nv21Bytes.length || uvIndex + 1 >= nv21Bytes.length) {
+              continue;
+            }
 
-          int r = (yValue + 1.370705 * (vValue - 128)).toInt();
-          int g =
-              (yValue - 0.337633 * (uValue - 128) - 0.698001 * (vValue - 128))
-                  .toInt();
-          int b = (yValue + 1.732446 * (uValue - 128)).toInt();
+            final int y = nv21Bytes[yIndex] & 0xff;
+            final int v = (nv21Bytes[uvIndex] & 0xff) - 128;
+            final int u = (nv21Bytes[uvIndex + 1] & 0xff) - 128;
 
-          outImg.setPixelRgb(
-              x, y, r.clamp(0, 255), g.clamp(0, 255), b.clamp(0, 255));
+            int r = (y + (1.370705 * v)).round().clamp(0, 255);
+            int g = (y - (0.337633 * u) - (0.698001 * v)).round().clamp(0, 255);
+            int b = (y + (1.732446 * u)).round().clamp(0, 255);
+
+            outImg.setPixelRgb(i, j, r, g, b);
+          }
         }
+        return outImg;
       }
-      return outImg;
-    } catch (_) {
-      return null;
+
+      // 2. Format YUV420 Multi Planes (3 Planes)
+      if (cameraImage.planes.length >= 3) {
+        final yPlane = cameraImage.planes[0].bytes;
+        final uPlane = cameraImage.planes[1].bytes;
+        final vPlane = cameraImage.planes[2].bytes;
+
+        final uvRowStride = cameraImage.planes[1].bytesPerRow;
+        final uvPixelStride = cameraImage.planes[1].bytesPerPixel ?? 1;
+
+        for (int y = 0; y < height; y++) {
+          for (int x = 0; x < width; x++) {
+            final yIndex = y * width + x;
+            final uvIndex = (y >> 1) * uvRowStride + (x >> 1) * uvPixelStride;
+
+            if (yIndex >= yPlane.length ||
+                uvIndex >= uPlane.length ||
+                uvIndex >= vPlane.length) continue;
+
+            final yValue = yPlane[yIndex] & 0xFF;
+            final uValue = (uPlane[uvIndex] & 0xFF) - 128;
+            final vValue = (vPlane[uvIndex] & 0xFF) - 128;
+
+            int r = (yValue + 1.402 * vValue).round().clamp(0, 255);
+            int g = (yValue - 0.344136 * uValue - 0.714136 * vValue)
+                .round()
+                .clamp(0, 255);
+            int b = (yValue + 1.772 * uValue).round().clamp(0, 255);
+
+            outImg.setPixelRgb(x, y, r, g, b);
+          }
+        }
+        return outImg;
+      }
+    } catch (e) {
+      log('❌ Error convertNV21ToImage: $e');
     }
+    return null;
   }
 
   InputImage? _inputImageFromCameraImage(CameraImage image) {
@@ -385,23 +448,34 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
 
       final width = image.width;
       final height = image.height;
-      final yPlane = image.planes[0].bytes;
-      final uPlane = image.planes[1].bytes;
-      final vPlane = image.planes[2].bytes;
 
-      final nv21 = Uint8List(width * height + (width * height ~/ 2));
-      nv21.setRange(0, width * height, yPlane);
+      Uint8List bytes;
+      if (image.planes.length == 1) {
+        bytes = image.planes[0].bytes;
+      } else {
+        final yPlane = image.planes[0].bytes;
+        final uPlane = image.planes[1].bytes;
+        final vPlane = image.planes[2].bytes;
 
-      int offset = width * height;
-      final chromaRowStride = image.planes[1].bytesPerRow;
-      final chromaPixelStride = image.planes[1].bytesPerPixel!;
+        final nv21 = Uint8List(width * height + (width * height ~/ 2));
+        nv21.setRange(0, width * height, yPlane);
 
-      for (int row = 0; row < height ~/ 2; row++) {
-        for (int col = 0; col < width ~/ 2; col++) {
-          final idx = row * chromaRowStride + col * chromaPixelStride;
-          nv21[offset++] = vPlane[idx];
-          nv21[offset++] = uPlane[idx];
+        int offset = width * height;
+        final chromaRowStride =
+            image.planes.length > 1 ? image.planes[1].bytesPerRow : width;
+        final chromaPixelStride =
+            image.planes.length > 1 ? (image.planes[1].bytesPerPixel ?? 1) : 1;
+
+        for (int row = 0; row < height ~/ 2; row++) {
+          for (int col = 0; col < width ~/ 2; col++) {
+            final idx = row * chromaRowStride + col * chromaPixelStride;
+            if (idx < vPlane.length && idx < uPlane.length) {
+              nv21[offset++] = vPlane[idx];
+              nv21[offset++] = uPlane[idx];
+            }
+          }
         }
+        bytes = nv21;
       }
 
       final metadata = InputImageMetadata(
@@ -411,7 +485,7 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
         bytesPerRow: image.width,
       );
 
-      return InputImage.fromBytes(bytes: nv21, metadata: metadata);
+      return InputImage.fromBytes(bytes: bytes, metadata: metadata);
     } catch (_) {
       return null;
     }
@@ -467,7 +541,10 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
             });
             if (!mounted) return;
             context.showSuccess("Wajah berhasil didaftarkan ke server!");
-            Future.delayed(const Duration(seconds: 2), () {
+
+            context.read<GetUserBloc>().add(const GetUserEvent.getUser());
+
+            Future.delayed(const Duration(milliseconds: 1200), () {
               if (mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const MainPage()),
@@ -488,12 +565,10 @@ class _RegisterFacePageState extends State<RegisterFacePage> {
         body: Stack(
           children: [
             CameraViewAttendancePage(
-              // 🆕 PERBAIKAN UTAMA: Pasang parameter Key agar membaca perubahan _cameraKey secara otomatis
               key: ValueKey(_cameraKey),
               title: 'Register Face',
               customPaint: _customPaint,
-              onImage:
-                  (img) {}, // Kosongkan, biarkan camera view memproses alur internalnya secara mandiri
+              onImage: (img) {},
               initialCameraLensDirection: _cameraLensDirection,
               onTakePicture: _takePicture,
               isModelReady: _isModelDownloaded,

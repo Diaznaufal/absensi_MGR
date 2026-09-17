@@ -1,349 +1,99 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_absensi_app/data/models/response/auth_response_model.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/components/image_picker_widget.dart';
 import '../../../core/core.dart';
 import '../../../data/datasources/auth_local_datasource.dart';
-import '../../../data/models/request/user_request_model.dart';
+import '../../../data/models/response/user_response_model.dart';
 import '../bloc/get_user/get_user_bloc.dart';
 import '../bloc/update_user/update_user_bloc.dart';
 
 class UpdateProfilePage extends StatefulWidget {
+  final UserResponseModel? user;
 
-  const UpdateProfilePage({
-    super.key,
-
-  });
+  const UpdateProfilePage({super.key, this.user});
 
   @override
   State<UpdateProfilePage> createState() => _UpdateProfilePageState();
 }
 
-class _UpdateProfilePageState extends State<UpdateProfilePage>
-    with TickerProviderStateMixin {
-  late TextEditingController nameController;
-  late TextEditingController emailController;
-  late TextEditingController phoneController;
-  late TextEditingController addressController;
-
-  // Kontroler terpisah untuk seksi Emergency Contact sesuai gambar
-  late TextEditingController emergencyNameController;
-  late TextEditingController emergencyRelationController;
-  late TextEditingController emergencyPhoneController;
+class _UpdateProfilePageState extends State<UpdateProfilePage> {
+  final _formKey = GlobalKey<FormState>();
 
   late TextEditingController oldPasswordController;
   late TextEditingController newPasswordController;
   late TextEditingController confirmPasswordController;
 
+  bool _obscureOldPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+
   XFile? imageFile;
-  AuthResponseModel? authData;
-
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late AnimationController _scaleController;
-
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _scaleAnimation;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
-    );
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack),
-    );
-
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        _fadeController.forward();
-        _slideController.forward();
-        _scaleController.forward();
-      }
-    });
-
-    loadData();
-
-    // // Inisialisasi data kontroler fields
-    // nameController = TextEditingController(text: widget.user.name);
-    // emailController = TextEditingController(text: widget.user.email);
-    // phoneController = TextEditingController(text: widget.user.phone);
-    // addressController = TextEditingController(text: widget.user.address);
-
-    // Pecah / Inisialisasi data dummy kontak darurat sesuai tampilan visual gambar
-    emergencyNameController = TextEditingController(text: 'Ibu Jane Doe');
-    emergencyRelationController = TextEditingController(text: 'Ibu');
-    emergencyPhoneController = TextEditingController(text: '081298765432');
-
     oldPasswordController = TextEditingController();
     newPasswordController = TextEditingController();
     confirmPasswordController = TextEditingController();
   }
 
-  loadData() async {
-    authData = await AuthLocalDatasource().getAuthData();
-    setState(() {});
-  }
-
   @override
   void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    addressController.dispose();
-    emergencyNameController.dispose();
-    emergencyRelationController.dispose();
-    emergencyPhoneController.dispose();
     oldPasswordController.dispose();
     newPasswordController.dispose();
     confirmPasswordController.dispose();
-    _fadeController.dispose();
-    _slideController.dispose();
-    _scaleController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: Container(
-        decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Custom App Bar
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildModernAppBar(),
-              ),
-
-              // Form Content
-              Expanded(
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          const SpaceHeight(10),
-
-                          // 1. Profile Image Section Card
-                          _buildProfileImageSection(),
-
-                          const SpaceHeight(16),
-
-                          // 2. Personal Details Section Card
-                          _buildPersonalDetailsCard(),
-
-                          const SpaceHeight(16),
-
-                          // 3. Emergency Contact Section Card
-                          _buildEmergencyContactCard(),
-
-                          const SpaceHeight(16),
-
-                          _buildAccountCard(),
-
-                          const SpaceHeight(16),
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: _buildUpdateButton(),
-                          ),
-                          const SpaceHeight(20),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        setState(() {
+          imageFile = picked;
+        });
+      }
+    } catch (e) {
+      debugPrint("Gagal memilih gambar: $e");
+    }
   }
 
-  Widget _buildModernAppBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          const SpaceWidth(16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Edit Profile',
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  'Update your personal information',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
       ),
-    );
-  }
-
-  Widget _buildProfileImageSection() {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A49B7),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SpaceWidth(12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Profile Picture',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        'Upload or update your profile photo',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title:
+                  Text('Galeri', style: GoogleFonts.poppins(fontSize: 13.sp)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
             ),
-            const SpaceHeight(16),
-            Text(
-              'Choose Profile Image',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            const SpaceHeight(8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[200]!),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    height: 60,
-                    width: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.camera_alt_outlined,
-                        color: Colors.grey[400]),
-                  ),
-                  const Spacer(),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A72F6),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                    ),
-                    onPressed: () {},
-                    child: Text(
-                      'Pilih Foto',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  )
-                ],
-              ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title:
+                  Text('Kamera', style: GoogleFonts.poppins(fontSize: 13.sp)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
             ),
           ],
         ),
@@ -351,293 +101,290 @@ class _UpdateProfilePageState extends State<UpdateProfilePage>
     );
   }
 
-  Widget _buildPersonalDetailsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A49B7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SpaceWidth(12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Personal Details',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Update your personal information',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SpaceHeight(16),
-          _buildCustomInputField(
-            controller: nameController,
-            label: 'Full Name',
-            icon: Icons.person_outline,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: emailController,
-            label: 'Email Address',
-            icon: Icons.email_outlined,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: phoneController,
-            label: 'Phone Number',
-            icon: Icons.phone_android_outlined,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: addressController,
-            label: 'Address',
-            icon: Icons.location_on_outlined,
-            maxLines: 2,
-          ),
-        ],
+  void _submitUpdate() {
+    // Validasi form password jika salah satu diisi
+    final oldPass = oldPasswordController.text.trim();
+    final newPass = newPasswordController.text.trim();
+    final confirmPass = confirmPasswordController.text.trim();
+
+    final bool isChangingPassword =
+        oldPass.isNotEmpty || newPass.isNotEmpty || confirmPass.isNotEmpty;
+
+    if (isChangingPassword) {
+      if (!_formKey.currentState!.validate()) {
+        return;
+      }
+    } else if (imageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Pilih foto avatar baru atau masukkan kata sandi baru.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // TODO: Sesuaikan dengan signature event di UpdateUserBloc Anda
+    // Contoh pemanggilan umum:
+    // context.read<UpdateUserBloc>().add(
+    //   UpdateUserEvent.updateProfile(
+    //     avatar: imageFile,
+    //     oldPassword: oldPass.isNotEmpty ? oldPass : null,
+    //     newPassword: newPass.isNotEmpty ? newPass : null,
+    //   ),
+    // );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Menyimpan perubahan...'),
+        backgroundColor: Color(0xFF007BFF),
       ),
     );
   }
 
-  Widget _buildEmergencyContactCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A49B7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.phone_in_talk,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SpaceWidth(12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Emergency Contact',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    Text(
-                      'Update your emergency contact',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SpaceHeight(16),
-          _buildCustomInputField(
-            controller: emergencyNameController,
-            label: 'Contact Name',
-            icon: Icons.person_outline,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: emergencyRelationController,
-            label: 'Relationship',
-            icon: Icons.people_outline,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: emergencyPhoneController,
-            label: 'Contact Number',
-            icon: Icons.phone_outlined,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccountCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A49B7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.phone_in_talk,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SpaceWidth(12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ubah Kata Sandi',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SpaceHeight(16),
-          _buildCustomInputField(
-            controller: oldPasswordController,
-            label: 'Kata Sandi Lama',
-            icon: Icons.lock_open_rounded,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: newPasswordController,
-            label: 'Kata Sandi Baru',
-            icon: Icons.lock_outline_rounded,
-          ),
-          const SpaceHeight(12),
-          _buildCustomInputField(
-            controller: confirmPasswordController,
-            label: 'Konfirmasi Kata Sandi',
-            icon: Icons.lock_outline_rounded,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCustomInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Edit Account',
           style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
             color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 16.sp,
           ),
         ),
-        const SpaceHeight(6),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: TextFormField(
-            controller: controller,
-            maxLines: maxLines,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 18),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUpdateButton() {
-    return Container(
-      width: double.infinity,
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // _updateProfile();
-          },
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 12.h),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.save, color: Color(0xFF0A49B7), size: 18),
-                const SpaceWidth(8),
+                // --- SEKSI AVATAR ---
                 Text(
-                  'Update Profile',
+                  'Avatar',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 6.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _showImageSourceDialog,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE9ECEF),
+                          elevation: 0,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 14.w, vertical: 8.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6.r),
+                            side: BorderSide(
+                                color: Colors.grey.shade400, width: 0.8),
+                          ),
+                        ),
+                        child: Text(
+                          'Choose File',
+                          style: GoogleFonts.poppins(
+                            color: Colors.black87,
+                            fontSize: 12.sp,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 10.w),
+                      Expanded(
+                        child: Text(
+                          imageFile != null
+                              ? imageFile!.name
+                              : 'No file chosen',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.sp,
+                            color: imageFile != null
+                                ? Colors.black87
+                                : Colors.grey[500],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (imageFile != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20.r),
+                          child: Image.file(
+                            File(imageFile!.path),
+                            width: 32.r,
+                            height: 32.r,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      else if (widget.user?.avatar != null &&
+                          widget.user!.avatar!.startsWith('http'))
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(20.r),
+                          child: Image.network(
+                            widget.user!.avatar!,
+                            width: 32.r,
+                            height: 32.r,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                SizedBox(height: 22.h),
+                Divider(thickness: 1, color: Colors.grey.shade300),
+                SizedBox(height: 14.h),
+
+                // --- SEKSI CHANGE PASSWORD ---
+                Text(
+                  'Change Password',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0A49B7),
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 14.h),
+
+                // Old Password
+                _buildPasswordField(
+                  controller: oldPasswordController,
+                  label: 'Old Password',
+                  hint: 'Old Password',
+                  obscureText: _obscureOldPassword,
+                  onToggleObscure: () {
+                    setState(() {
+                      _obscureOldPassword = !_obscureOldPassword;
+                    });
+                  },
+                  validator: (val) {
+                    if ((newPasswordController.text.isNotEmpty ||
+                            confirmPasswordController.text.isNotEmpty) &&
+                        (val == null || val.isEmpty)) {
+                      return 'Masukkan kata sandi lama Anda';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 14.h),
+
+                // New Password
+                _buildPasswordField(
+                  controller: newPasswordController,
+                  label: 'New Password',
+                  hint: 'New Password',
+                  obscureText: _obscureNewPassword,
+                  onToggleObscure: () {
+                    setState(() {
+                      _obscureNewPassword = !_obscureNewPassword;
+                    });
+                  },
+                  validator: (val) {
+                    if (oldPasswordController.text.isNotEmpty &&
+                        (val == null || val.isEmpty)) {
+                      return 'Masukkan kata sandi baru';
+                    }
+                    if (val != null && val.isNotEmpty && val.length < 6) {
+                      return 'Minimal 6 karakter';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 14.h),
+
+                // Confirm Password
+                _buildPasswordField(
+                  controller: confirmPasswordController,
+                  label: 'Confirm Password',
+                  hint: 'Confirm Password',
+                  obscureText: _obscureConfirmPassword,
+                  onToggleObscure: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                  validator: (val) {
+                    if (newPasswordController.text.isNotEmpty &&
+                        val != newPasswordController.text) {
+                      return 'Konfirmasi kata sandi tidak cocok';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 24.h),
+
+                // Save Changes Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 44.h,
+                  child: ElevatedButton(
+                    onPressed: _submitUpdate,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF007BFF),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                    ),
+                    child: Text(
+                      'Save Changes',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13.5.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 12.h),
+
+                // Close Button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF2B5E),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 22.w, vertical: 8.h),
+                    ),
+                    child: Text(
+                      'Close',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12.5.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -648,23 +395,64 @@ class _UpdateProfilePageState extends State<UpdateProfilePage>
     );
   }
 
-  // void _updateProfile() {
-  //   final String phone = phoneController.text.trim();
-  //   final String email = emailController.text.trim();
-  //   final String address = addressController.text.trim();
-  //   final String combinedEmergency =
-  //       "${emergencyNameController.text.trim()} (${emergencyPhoneController.text.trim()})";
-
-  //   final UserRequestModel user = UserRequestModel(
-  //       id: widget.user.id!,
-  //       name: nameController.text.trim(),
-  //       email: email,
-  //       phone: phone,
-  //       address: address,
-  //       emergencyContact: combinedEmergency);
-
-  //   context.read<UpdateUserBloc>().add(
-  //         UpdateUserEvent.updateUser(user, widget.user.id!),
-  //       );
-  // }
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required bool obscureText,
+    required VoidCallback onToggleObscure,
+    String? Function(String?)? validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12.5.sp,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        SizedBox(height: 6.h),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          validator: validator,
+          style: GoogleFonts.poppins(fontSize: 13.sp, color: Colors.black87),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: GoogleFonts.poppins(
+              fontSize: 12.5.sp,
+              color: Colors.grey[400],
+            ),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8.r),
+              borderSide: const BorderSide(color: Color(0xFF007BFF)),
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                obscureText
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.grey[500],
+                size: 18.r,
+              ),
+              onPressed: onToggleObscure,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

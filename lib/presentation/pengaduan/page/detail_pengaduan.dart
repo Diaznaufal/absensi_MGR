@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/bloc/kategoriOptions.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/bloc/timeline_list.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/model/pengaduan_model.dart';
@@ -19,8 +20,9 @@ class DetailPengaduan extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Build sekali saja agar tidak dipanggil berulang-ulang
     final timelineList = buildTimeline(pengaduan);
+    final size = MediaQuery.of(context).size;
+    final bool isTablet = size.width >= 600;
 
     return PopScope(
       canPop: false,
@@ -32,7 +34,6 @@ class DetailPengaduan extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           elevation: 0,
-          toolbarHeight: 70,
           automaticallyImplyLeading: false,
           backgroundColor: const Color(0xFF0A49B7),
           centerTitle: true,
@@ -40,7 +41,7 @@ class DetailPengaduan extends StatelessWidget {
             "Detail Pengaduan",
             style: GoogleFonts.poppins(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -48,62 +49,67 @@ class DetailPengaduan extends StatelessWidget {
             onPressed: () {
               _kembaliKePengaduan(context);
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.keyboard_arrow_left,
-              size: 27,
+              size: 26.r,
               color: Colors.white,
             ),
           ),
         ),
-        backgroundColor: const Color(0xD7FFFFFF),
+        backgroundColor: const Color(0xFFF4F6F9),
         body: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              child: Column(
-                children: [
-                  _kodePengaduan(
-                    context,
-                    pengaduan,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 650),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isTablet ? 18.w : 14.w,
+                  vertical: 14.h,
+                ),
+                child: Column(
+                  children: [
+                    _kodePengaduan(
+                      context,
+                      pengaduan,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha(77),
-                          blurRadius: 5,
-                          spreadRadius: 1,
+                    SizedBox(height: 14.h),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14.w,
+                        vertical: 14.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8.r,
+                            offset: Offset(0, 3.h),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: List.generate(
+                          timelineList.length,
+                          (index) {
+                            return TimelineCard(
+                              timeline: timelineList[index],
+                              isLast: index == timelineList.length - 1,
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: List.generate(
-                        timelineList.length,
-                        (index) {
-                          return TimelineCard(
-                            timeline: timelineList[index],
-                            isLast: index == timelineList.length - 1,
-                          );
-                        },
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _deskripsiPengaduan(
-                    context,
-                    pengaduan,
-                  ),
-                ],
+                    SizedBox(height: 14.h),
+                    _deskripsiPengaduan(
+                      context,
+                      pengaduan,
+                    ),
+                    SizedBox(height: 20.h),
+                  ],
+                ),
               ),
             ),
           ),
@@ -117,7 +123,7 @@ void _kembaliKePengaduan(BuildContext context) {
   Navigator.pushReplacement(
     context,
     MaterialPageRoute(
-      builder: (_) => PengaduanPage(),
+      builder: (_) => const PengaduanPage(),
     ),
   );
 }
@@ -127,16 +133,16 @@ Widget _kodePengaduan(
   PengaduanModel pengaduan,
 ) {
   return Container(
-    padding: const EdgeInsets.all(14),
+    padding: EdgeInsets.all(16.r),
     width: double.infinity,
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14.r),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withAlpha(50),
-          spreadRadius: 1,
-          blurRadius: 10,
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10.r,
+          offset: Offset(0, 4.h),
         ),
       ],
     ),
@@ -145,24 +151,27 @@ Widget _kodePengaduan(
         Text(
           "Kode Pengaduan",
           style: GoogleFonts.poppins(
+            fontSize: 11.5.sp,
             fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 8.h),
         Text(
           pengaduan.kodePengaduan,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 24,
+          style: TextStyle(
+            fontSize: 20.sp,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF0A49B7),
+            color: const Color(0xFF0A49B7),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 8.h),
         Text(
           _formatTanggal(pengaduan.tanggalPengaduan),
           style: GoogleFonts.poppins(
-            fontSize: 12,
+            fontSize: 11.sp,
+            color: Colors.grey[600],
           ),
         ),
       ],
@@ -182,28 +191,21 @@ String _formatTanggal(DateTime tanggal) {
 }
 
 String _getKategoriTitle(String value) {
-  // Bersihkan value
   final kategoriValue = value.trim();
 
-  // Kalau kosong
   if (kategoriValue.isEmpty) {
     return "-";
   }
 
-  // Cari index kategori yang cocok
   final index = kategoriOptions.indexWhere(
     (e) =>
         e.value.toString().trim().toLowerCase() == kategoriValue.toLowerCase(),
   );
 
-  // Jika tidak ditemukan
   if (index == -1) {
-    // Tetap tampilkan value asli
-    // daripada aplikasi crash
     return kategoriValue;
   }
 
-  // Jika ditemukan
   return kategoriOptions[index].title;
 }
 
@@ -212,16 +214,16 @@ Widget _deskripsiPengaduan(
   PengaduanModel pengaduan,
 ) {
   return Container(
-    padding: const EdgeInsets.all(14),
+    padding: EdgeInsets.all(16.r),
     width: double.infinity,
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14.r),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withAlpha(50),
-          spreadRadius: 1,
-          blurRadius: 10,
+          color: Colors.black.withOpacity(0.04),
+          blurRadius: 8.r,
+          offset: Offset(0, 3.h),
         ),
       ],
     ),
@@ -229,36 +231,40 @@ Widget _deskripsiPengaduan(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _judulSection("Kategori"),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         Text(
           _getKategoriTitle(
             pengaduan.kategori,
           ),
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 12.5.sp,
+            color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         _judulSection("Judul Pengaduan"),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         Text(
           pengaduan.judul.isNotEmpty ? pengaduan.judul : "-",
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 12.5.sp,
+            color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         _judulSection("Isi Pengaduan"),
-        const SizedBox(height: 4),
+        SizedBox(height: 4.h),
         Text(
           pengaduan.isi.isNotEmpty ? pengaduan.isi : "-",
           style: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 12.5.sp,
+            color: Colors.black87,
+            height: 1.4,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 14.h),
         _judulSection("Lampiran"),
-        const SizedBox(height: 6),
+        SizedBox(height: 8.h),
         _buildLampiran(
           context,
           pengaduan,
@@ -273,7 +279,8 @@ Widget _judulSection(String title) {
     title,
     style: GoogleFonts.poppins(
       fontWeight: FontWeight.bold,
-      fontSize: 16,
+      fontSize: 13.5.sp,
+      color: Colors.black,
     ),
   );
 }
@@ -282,24 +289,23 @@ Widget _buildLampiran(
   BuildContext context,
   PengaduanModel pengaduan,
 ) {
-  // Jika tidak ada lampiran
   if (pengaduan.lampiran.isEmpty) {
     return Text(
       "-",
       style: GoogleFonts.poppins(
-        fontSize: 14,
+        fontSize: 12.sp,
         color: Colors.grey,
       ),
     );
   }
 
   return SizedBox(
-    height: 120,
+    height: 105.h,
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
       itemCount: pengaduan.lampiran.length,
       separatorBuilder: (_, __) {
-        return const SizedBox(width: 10);
+        return SizedBox(width: 10.w);
       },
       itemBuilder: (context, index) {
         final path = pengaduan.lampiran[index];
@@ -317,7 +323,6 @@ Widget _lampiranItem(
   BuildContext context,
   String path,
 ) {
-  // Jika path kosong
   if (path.trim().isEmpty) {
     return _lampiranError();
   }
@@ -326,7 +331,6 @@ Widget _lampiranItem(
 
   return GestureDetector(
     onTap: () {
-      // Hanya buka preview jika file tersedia
       if (file.existsSync()) {
         _showPreviewLampiran(
           context,
@@ -335,21 +339,19 @@ Widget _lampiranItem(
       }
     },
     child: ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10.r),
       child: Container(
-        width: 140,
+        width: 125.w,
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           border: Border.all(
             color: Colors.grey.shade300,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10.r),
         ),
         child: Image.file(
           file,
           fit: BoxFit.cover,
-
-          // Jika gambar gagal dibuka
           errorBuilder: (
             context,
             error,
@@ -365,12 +367,12 @@ Widget _lampiranItem(
 
 Widget _lampiranError() {
   return Container(
-    width: 140,
-    height: 120,
+    width: 125.w,
+    height: 105.h,
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: Colors.grey.shade100,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10.r),
       border: Border.all(
         color: Colors.grey.shade300,
       ),
@@ -378,17 +380,17 @@ Widget _lampiranError() {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(
+        Icon(
           Icons.broken_image_outlined,
-          size: 30,
+          size: 24.r,
           color: Colors.grey,
         ),
-        const SizedBox(height: 5),
+        SizedBox(height: 4.h),
         Text(
           "Gambar tidak tersedia",
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
-            fontSize: 10,
+            fontSize: 9.5.sp,
             color: Colors.grey,
           ),
         ),
@@ -407,16 +409,15 @@ void _showPreviewLampiran(
     builder: (dialogContext) {
       return Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
+        insetPadding: EdgeInsets.all(16.r),
         child: Stack(
           children: [
-            // Gambar
             InteractiveViewer(
               minScale: 0.5,
               maxScale: 4.0,
               child: Center(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                   child: Image.file(
                     file,
                     fit: BoxFit.contain,
@@ -426,12 +427,12 @@ void _showPreviewLampiran(
                       stackTrace,
                     ) {
                       return Container(
-                        height: 250,
+                        height: 200.h,
                         alignment: Alignment.center,
                         color: Colors.white,
-                        child: const Icon(
+                        child: Icon(
                           Icons.broken_image_outlined,
-                          size: 50,
+                          size: 40.r,
                           color: Colors.grey,
                         ),
                       );
@@ -440,11 +441,9 @@ void _showPreviewLampiran(
                 ),
               ),
             ),
-
-            // Tombol close
             Positioned(
-              top: 8,
-              right: 8,
+              top: 8.h,
+              right: 8.w,
               child: Material(
                 color: Colors.black54,
                 shape: const CircleBorder(),
@@ -452,9 +451,10 @@ void _showPreviewLampiran(
                   onPressed: () {
                     Navigator.pop(dialogContext);
                   },
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close,
                     color: Colors.white,
+                    size: 20.r,
                   ),
                 ),
               ),

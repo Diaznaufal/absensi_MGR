@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_absensi_app/core/helper/radius_calculate.dart'; // 👈 1. IMPORT HELPER
 import 'package:flutter_absensi_app/data/datasources/attendance_remote_datasource.dart';
 import 'package:flutter_absensi_app/data/models/response/history_response_model.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -10,7 +12,6 @@ import 'package:fdottedline_nullsafety/fdottedline__nullsafety.dart';
 import 'package:latlong2/latlong.dart';
 
 class DetailHistoryPage extends StatefulWidget {
-  // Menerima data lemparan langsung dari card riwayat di halaman depan
   final dynamic attendanceItem;
 
   const DetailHistoryPage({Key? key, required this.attendanceItem})
@@ -33,11 +34,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
 
   Future<void> _fetchDetailAbsensi() async {
     try {
-      // Pastikan key lemparan dari card depan namanya 'idAttendance' atau sesuaikan dengan objek asli kamu[cite: 6]
       final String idAttendance =
           widget.attendanceItem.idAttendance?.toString() ?? '';
 
-      // Panggil fungsi getHistoryDetail yang sudah kamu perbaiki di datasource[cite: 7]
       final result =
           await _datasoource.getHistoryDetail(idAttendance: idAttendance);
 
@@ -49,8 +48,8 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         },
         (successData) {
           setState(() {
-            detailData = successData; // Set data ke model UI[cite: 6]
-            _isLoading = false; // Matikan loading[cite: 6]
+            detailData = successData;
+            _isLoading = false;
           });
         },
       );
@@ -61,7 +60,6 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     }
   }
 
-  // <-- TAMBAHKAN METODE INI DI BAWAH _calculateLate()
   Future<void> _openMapApp(double lat, double lng) async {
     final Uri googleMapsUrl =
         Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
@@ -69,10 +67,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
       if (await canLaunchUrl(googleMapsUrl)) {
         await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
       } else {
-        print("Tidak dapat membuka aplikasi peta.");
+        debugPrint("Tidak dapat membuka aplikasi peta.");
       }
     } catch (e) {
-      print("🚨 Gagal membuka maps: $e");
+      debugPrint("🚨 Gagal membuka maps: $e");
     }
   }
 
@@ -85,7 +83,8 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         checkIn!.jamMasuk!.isNotEmpty &&
         workShift!.clockIn!.isNotEmpty) {
       try {
-        final DateTime tanggalDasar = DateTime.parse(detailData!.tanggalMasuk!);
+        final DateTime tanggalDasar =
+            DateTime.parse(detailData!.tanggalMasuk!);
         final splitJamMasuk = checkIn.jamMasuk!.split(':');
         final splitClockIn = workShift.clockIn!.split(':');
 
@@ -118,34 +117,35 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     return Scaffold(
       backgroundColor: const Color(0xEEF9FAFB),
       appBar: AppBar(
-        toolbarHeight: 60,
+        toolbarHeight: 56.h,
         backgroundColor: const Color(0xFF0A49B7),
         automaticallyImplyLeading: false,
         leading: InkWell(
           onTap: () => Navigator.pop(context),
-          child: const Icon(Icons.arrow_back_ios_new,
-              size: 22, color: Colors.white),
+          child:
+              Icon(Icons.arrow_back_ios_new, size: 20.r, color: Colors.white),
         ),
         title: Text(
           'Detail Absensi',
           style: GoogleFonts.poppins(
-              fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+              fontSize: 16.sp,
+              color: Colors.white,
+              fontWeight: FontWeight.bold),
         ),
       ),
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
                 child: Column(
                   children: [
                     _informasiKehadiran(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 12.h),
                     _rincianWaktu(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 12.h),
                     _verifikasiFace(),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 12.h),
                     _lokasiKaryawan()
                   ],
                 ),
@@ -166,8 +166,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Informasi Kehadiran',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
+              style: GoogleFonts.poppins(
+                  fontSize: 13.sp, fontWeight: FontWeight.w600)),
+          SizedBox(height: 10.h),
           IntrinsicHeight(
             child: Row(
               children: [
@@ -176,11 +177,12 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Status Kehadiran',
-                          style: GoogleFonts.poppins(fontSize: 12)),
-                      const SizedBox(height: 5),
+                          style: GoogleFonts.poppins(fontSize: 11.sp)),
+                      SizedBox(height: 4.h),
                       Text(
                         '◉ $statusLabel',
                         style: GoogleFonts.poppins(
+                          fontSize: 12.sp,
                           color: isOntime ? Colors.green : Colors.amber,
                           fontWeight: FontWeight.w600,
                         ),
@@ -188,19 +190,18 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
                     ],
                   ),
                 ),
-                const VerticalDivider(width: 40, color: Colors.grey),
+                VerticalDivider(width: 24.w, color: Colors.grey),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Keterlambatan',
-                          style: GoogleFonts.poppins(fontSize: 12)),
-                      const SizedBox(height: 5),
+                          style: GoogleFonts.poppins(fontSize: 11.sp)),
+                      SizedBox(height: 4.h),
                       Text(
-                        isOntime
-                            ? '0 Menit'
-                            : '$selisihMenit Menit', // Menampilkan status keterlambatan dinamis
+                        isOntime ? '0 Menit' : '$selisihMenit Menit',
                         style: GoogleFonts.poppins(
+                          fontSize: 12.sp,
                           color: isOntime ? Colors.green : Colors.amber,
                           fontWeight: FontWeight.w600,
                         ),
@@ -222,10 +223,11 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Rincian Waktu',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
+              style: GoogleFonts.poppins(
+                  fontSize: 13.sp, fontWeight: FontWeight.w600)),
+          SizedBox(height: 10.h),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -233,27 +235,27 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: 18.r,
                       backgroundColor: const Color(0xFF0A49B7),
                       child: Text('IN',
                           style: GoogleFonts.poppins(
-                              fontSize: 16,
+                              fontSize: 12.sp,
                               fontWeight: FontWeight.w600,
                               color: Colors.white)),
                     ),
-                    const SizedBox(height: 5),
-                    Text('Check In', style: GoogleFonts.poppins(fontSize: 12)),
+                    SizedBox(height: 4.h),
+                    Text('Check In',
+                        style: GoogleFonts.poppins(fontSize: 11.sp)),
                     Text(
-                      detailData?.checkIn?.jamMasuk ??
-                          '-', // Mengambil jam masuk dinamis per index
+                      detailData?.checkIn?.jamMasuk ?? '-',
                       style: GoogleFonts.poppins(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                          fontSize: 11.sp, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 17),
+                    padding: EdgeInsets.only(top: 15.h),
                     child: FDottedLine(
                       color: Colors.grey,
                       width: double.infinity,
@@ -266,21 +268,21 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: 18.r,
                       backgroundColor: const Color(0xFF0A49B7),
                       child: Text('OUT',
                           style: GoogleFonts.poppins(
-                              fontSize: 14,
+                              fontSize: 11.sp,
                               fontWeight: FontWeight.w600,
                               color: Colors.white)),
                     ),
-                    const SizedBox(height: 5),
-                    Text('Check Out', style: GoogleFonts.poppins(fontSize: 12)),
+                    SizedBox(height: 4.h),
+                    Text('Check Out',
+                        style: GoogleFonts.poppins(fontSize: 11.sp)),
                     Text(
-                      detailData?.checkOut?.jamKeluar ??
-                          '-', // Mengambil jam keluar dinamis per index
+                      detailData?.checkOut?.jamKeluar ?? '-',
                       style: GoogleFonts.poppins(
-                          fontSize: 12, fontWeight: FontWeight.w600),
+                          fontSize: 11.sp, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -295,38 +297,44 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
   Widget _verifikasiFace() {
     final String? photoIn = detailData?.checkIn?.photoUrl;
     final String? photoOut = detailData?.checkOut?.photoUrl;
+    final double imgSize = 135.w;
+
     return _buildMainCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              SvgPicture.asset('assets/icons/scanperson.svg'),
-              const SizedBox(width: 10),
+              SvgPicture.asset('assets/icons/scanperson.svg',
+                  width: 20.r, height: 20.r),
+              SizedBox(width: 8.w),
               Text('Verifikasi Face Recognition',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.poppins(
+                      fontSize: 13.sp, fontWeight: FontWeight.w600)),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 12.h),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               Column(
                 children: [
                   Text(
                     'IN',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(
+                        fontSize: 12.sp, fontWeight: FontWeight.bold),
                   ),
+                  SizedBox(height: 4.h),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10.r),
                     child: photoIn != null && photoIn.isNotEmpty
                         ? Image.network(
                             photoIn,
-                            height: 150,
-                            width: 150,
+                            height: imgSize,
+                            width: imgSize,
                             fit: BoxFit.cover,
                           )
-                        : _buildPlaceholderImage(),
+                        : _buildPlaceholderImage(imgSize),
                   ),
                 ],
               ),
@@ -334,18 +342,20 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
                 children: [
                   Text(
                     'OUT',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                    style: GoogleFonts.poppins(
+                        fontSize: 12.sp, fontWeight: FontWeight.bold),
                   ),
+                  SizedBox(height: 4.h),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10.r),
                     child: photoOut != null && photoOut.isNotEmpty
                         ? Image.network(
                             photoOut,
-                            height: 150,
-                            width: 150,
+                            height: imgSize,
+                            width: imgSize,
                             fit: BoxFit.cover,
                           )
-                        : _buildPlaceholderImage(),
+                        : _buildPlaceholderImage(imgSize),
                   ),
                 ],
               ),
@@ -356,20 +366,26 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     );
   }
 
-  Widget _buildPlaceholderImage() {
+  Widget _buildPlaceholderImage(double size) {
     return Image.asset(
       'assets/images/orang.png',
-      width: 150,
-      height: 150,
+      width: size,
+      height: size,
       fit: BoxFit.cover,
     );
   }
 
+  // 🔄 2. WIDGET LOKASI KARYAWAN DENGAN VALIDASI & VISUALISASI POLYGON
   Widget _lokasiKaryawan() {
-    final double officeLat =
-        double.tryParse(detailData?.productLocation?.latitude ?? '') ?? 0.0;
-    final double officeLng =
-        double.tryParse(detailData?.productLocation?.longitude ?? '') ?? 0.0;
+    // Ambil string polygon dari productLocation
+    final String? polygonRaw = detailData?.productLocation?.polygon;
+    final List<List<double>> rawPolygonPoints =
+        RadiusCalculate.parsePolygon(polygonRaw);
+
+    // Konversi ke List<LatLng> untuk FlutterMap
+    final List<LatLng> polygonLatLngs = rawPolygonPoints
+        .map((point) => LatLng(point[0], point[1]))
+        .toList();
 
     final double latIn =
         double.tryParse(detailData?.checkIn?.latitude ?? '0') ?? -6.917464;
@@ -381,19 +397,15 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     final double lngOut =
         double.tryParse(detailData?.checkOut?.longitude ?? '0') ?? 107.619123;
 
-    double distanceIn = 0.0;
-    if (officeLat != 0.0 && latIn != 0.0) {
-      distanceIn =
-          Geolocator.distanceBetween(officeLat, officeLng, latIn, lngIn);
-    }
+    // Cek apakah koordinat IN / OUT berada di dalam polygon
+    final bool isInsideIn = rawPolygonPoints.isNotEmpty
+        ? RadiusCalculate.isPointInPolygon(latIn, lngIn, rawPolygonPoints)
+        : true;
 
-    double distanceOut = 0.0;
-    if (officeLat != 0.0 && latOut != 0.0) {
-      distanceOut =
-          Geolocator.distanceBetween(officeLat, officeLng, latOut, lngOut);
-    }
+    final bool isInsideOut = rawPolygonPoints.isNotEmpty
+        ? RadiusCalculate.isPointInPolygon(latOut, lngOut, rawPolygonPoints)
+        : true;
 
-    // Pengecekan apakah user sudah absen pulang atau belum
     final bool hasCheckedOut = detailData?.checkOut?.jamKeluar != null;
 
     return _buildMainCard(
@@ -402,267 +414,191 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.location_pin),
-              const SizedBox(width: 10),
+              Icon(Icons.location_pin, size: 20.r),
+              SizedBox(width: 8.w),
               Text('Lokasi (GPS)',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                  style: GoogleFonts.poppins(
+                      fontSize: 13.sp, fontWeight: FontWeight.w600)),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: 12.h),
 
-          // ==================== CHECK IN (IN) ====================
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                ' I\nN',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 12),
-              InkWell(
-                onTap: () => _openMapApp(latIn, lngIn), // <-- TAMBAHKAN PETA IN
-                child: SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(latIn, lngIn),
-                        initialZoom: 15.0,
-                        interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.none),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.jagoflutter.hr',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: LatLng(latIn, lngIn),
-                              width: 30,
-                              height: 30,
-                              child: const Icon(Icons.location_on,
-                                  color: Colors.blue, size: 30),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: SizedBox(
-                  height: 90,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                                text: 'Koordinat\n',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12, color: Colors.grey)),
-                            TextSpan(
-                                text: '$latIn, $lngIn',
-                                style: GoogleFonts.poppins(fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                    text:
-                                        'Jarak Kantor\n', // Umat diganti biar pas keterangannya
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 11, color: Colors.grey)),
-                                TextSpan(
-                                    text:
-                                        '${distanceIn.toStringAsFixed(0)} Meter', // Ubah toFixed jadi 0 biar rapi bulat
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                    )),
-                              ],
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () => _openMapApp(
-                                latIn, lngIn), // <-- TAMBAHKAN TOMBOL IN
-                            child: Container(
-                              width: 115,
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0A49B7),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.map_outlined,
-                                      color: Colors.white, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Lihat di Peta',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.white, fontSize: 12),
-                                  )
-                                ],
-                              ),
-                            ),
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            ],
+          // CHECK IN (IN)
+          _buildMapLocationRow(
+            label: ' I\nN',
+            lat: latIn,
+            lng: lngIn,
+            isInside: isInsideIn,
+            polygonLatLngs: polygonLatLngs,
+            isAvailable: true,
+            onTap: () => _openMapApp(latIn, lngIn),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 16.h),
 
-          // ==================== CHECK OUT (OUT) ====================
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'O\nU\nT',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 12),
-              InkWell(
-                onTap: hasCheckedOut
-                    ? () => _openMapApp(latOut, lngOut)
-                    : null, // <-- TAMBAHKAN PETA OUT
-                child: SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: FlutterMap(
-                      options: MapOptions(
-                        initialCenter: LatLng(latOut, lngOut),
-                        initialZoom: 15.0,
-                        interactionOptions: const InteractionOptions(
-                            flags: InteractiveFlag.none),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.MGR.hris',
-                        ),
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: LatLng(latOut, lngOut),
-                              width: 30,
-                              height: 30,
-                              child: Icon(Icons.location_on,
-                                  color:
-                                      hasCheckedOut ? Colors.blue : Colors.grey,
-                                  size: 30),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: SizedBox(
-                  height: 90,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                                text: 'Koordinat\n',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12, color: Colors.grey)),
-                            TextSpan(
-                                text: hasCheckedOut
-                                    ? '$latOut, $lngOut'
-                                    : '-', // Tampilkan strip jika belum checkout
-                                style: GoogleFonts.poppins(fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                    text: 'Jarak Kantor\n',
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 11, color: Colors.grey)),
-                                TextSpan(
-                                    text: hasCheckedOut
-                                        ? '${distanceOut.toStringAsFixed(0)} Meter'
-                                        : '-', // Tampilkan strip jika belum checkout
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                    )),
-                              ],
-                            ),
-                          ),
-                          InkWell(
-                            onTap: hasCheckedOut
-                                ? () => _openMapApp(latOut, lngOut)
-                                : null, // <-- TAMBAHKAN TOMBOL OUT
-                            child: Container(
-                              width: 115,
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: hasCheckedOut
-                                    ? const Color(0xFF0A49B7)
-                                    : Colors.grey,
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.map_outlined,
-                                      color: Colors.white, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Lihat di Peta',
-                                    style: GoogleFonts.poppins(
-                                        color: Colors.white, fontSize: 12),
-                                  )
-                                ],
-                              ),
-                            ),
-                          )
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            ],
-          )
+          // CHECK OUT (OUT)
+          _buildMapLocationRow(
+            label: 'O\nU\nT',
+            lat: latOut,
+            lng: lngOut,
+            isInside: isInsideOut,
+            polygonLatLngs: polygonLatLngs,
+            isAvailable: hasCheckedOut,
+            onTap: hasCheckedOut ? () => _openMapApp(latOut, lngOut) : null,
+          ),
         ],
       ),
+    );
+  }
+
+  // 🔄 3. RENDER BARIS MAP + AREA POLYGON
+  Widget _buildMapLocationRow({
+    required String label,
+    required double lat,
+    required double lng,
+    required bool isInside,
+    required List<LatLng> polygonLatLngs,
+    required bool isAvailable,
+    required VoidCallback? onTap,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style:
+              GoogleFonts.poppins(fontSize: 11.sp, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(width: 10.w),
+        InkWell(
+          onTap: onTap,
+          child: SizedBox(
+            width: 80.w,
+            height: 80.w,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10.r),
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: LatLng(lat, lng),
+                  initialZoom: 15.0,
+                  interactionOptions:
+                      const InteractionOptions(flags: InteractiveFlag.none),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.jagoflutter.hr',
+                  ),
+                  // Render polygon jika data koordinat tersedia
+                  if (polygonLatLngs.isNotEmpty)
+                    PolygonLayer(
+                      polygons: [
+                        Polygon(
+                          points: polygonLatLngs,
+                          color: Colors.blue.withOpacity(0.2),
+                          borderColor: Colors.blue,
+                          borderStrokeWidth: 2,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(lat, lng),
+                        width: 24.r,
+                        height: 24.r,
+                        child: Icon(Icons.location_on,
+                            color: isAvailable
+                                ? (isInside ? Colors.blue : Colors.red)
+                                : Colors.grey,
+                            size: 24.r),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(width: 10.w),
+        Expanded(
+          child: SizedBox(
+            height: 80.w,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Koordinat',
+                        style: GoogleFonts.poppins(
+                            fontSize: 10.sp, color: Colors.grey)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        isAvailable ? '$lat, $lng' : '-',
+                        style: GoogleFonts.poppins(fontSize: 11.sp),
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Status Area',
+                            style: GoogleFonts.poppins(
+                                fontSize: 10.sp, color: Colors.grey)),
+                        Text(
+                          isAvailable
+                              ? (isInside ? 'Dalam Area' : 'Luar Area')
+                              : '-',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.sp,
+                            fontWeight: FontWeight.w600,
+                            color: isAvailable
+                                ? (isInside ? Colors.green : Colors.red)
+                                : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: onTap,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 6.h),
+                        decoration: BoxDecoration(
+                          color: isAvailable
+                              ? const Color(0xFF0A49B7)
+                              : Colors.grey,
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.map_outlined,
+                                color: Colors.white, size: 14.r),
+                            SizedBox(width: 4.w),
+                            Text(
+                              'Peta',
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white, fontSize: 10.sp),
+                            )
+                          ],
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ],
+            ),
+          ),
+        )
+      ],
     );
   }
 }
@@ -670,10 +606,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
 Widget _buildMainCard({required Widget child}) {
   return Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(14),
+    padding: EdgeInsets.all(12.r),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(14.r),
       border: Border.all(color: const Color(0xFFE9EDF7)),
     ),
     child: child,

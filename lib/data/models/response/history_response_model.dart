@@ -56,12 +56,14 @@ class ProductLocationModel {
   final String? nameProduct;
   final String? latitude;
   final String? longitude;
+  final String? polygon; // 👈 1. TAMBAHKAN FIELD POLYGON
 
   ProductLocationModel({
     this.idProduct,
     this.nameProduct,
     this.latitude,
     this.longitude,
+    this.polygon, // 👈 2. TAMBAHKAN DI CONSTRUCTOR
   });
 
   factory ProductLocationModel.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,7 @@ class ProductLocationModel {
       nameProduct: json['name_product'],
       latitude: json['latitude']?.toString(),
       longitude: json['longitude']?.toString(),
+      polygon: json['polygon']?.toString(), // 👈 3. PARSING DATA POLYGON
     );
   }
 }

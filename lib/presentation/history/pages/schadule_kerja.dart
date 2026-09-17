@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_absensi_app/data/datasources/attendance_remote_datasource.dart';
 import 'package:flutter_absensi_app/presentation/history/model/kalender_model.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 class ScheduleKerjaPage extends StatefulWidget {
   const ScheduleKerjaPage({super.key});
@@ -19,7 +19,6 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
   List<kalenderModel> _schedule = [];
   bool _isLoading = false;
 
-  // Map untuk mempermudah pencarian data kalender berdasarkan String key 'YYYY-MM-DD'
   Map<String, kalenderModel> get attendanceData => {
         for (final item in _schedule)
           "${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-${item.date.day.toString().padLeft(2, '0')}":
@@ -48,7 +47,6 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
               DateTime(hariIni.year, hariIni.month, hariIni.day);
 
           _schedule = responseModel.data!.map((item) {
-            // Trim spasi kosong tak terlihat agar pengecekan string valid 100%
             final String currentStatus = item.status?.toString().trim() ?? "";
             final String label =
                 item.statusLabel?.toString().toLowerCase().trim() ?? "";
@@ -67,7 +65,6 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
             String jamMasuk = formatJam(item.clockIn);
             String jamKeluar = formatJam(item.clockOut);
 
-            // Format jam kerja default dinamis langsung mengikuti manifes BE
             String customJamKerja =
                 (jamMasuk.isNotEmpty && jamKeluar.isNotEmpty)
                     ? "$jamMasuk -\n$jamKeluar"
@@ -84,9 +81,7 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
               status = statusKalender.dayOff;
             } else if (label == 'Cuti' || currentStatus == '4') {
               status = statusKalender.cuti;
-            }
-            //=======
-            else if (currentStatus == "6" ||
+            } else if (currentStatus == "6" ||
                 label == "sudah absen" ||
                 label == "on time") {
               final bool isOntime = (item.timeManagement == 1 ||
@@ -101,12 +96,9 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
             } else {
               if (perbandinganTanggal.isAfter(tanggalSekarang) ||
                   perbandinganTanggal.isAtSameMomentAs(tanggalSekarang)) {
-                // Hari ini atau esok yang belum diabsen: set status ontime agar dasar warnanya hijau,
-                // tapi variabel titleText diisi jam kerja dari BE agar di UI dicetak string jamnya.
                 status = statusKalender.ontime;
                 titleText = customJamKerja;
               } else {
-                // Hari kerja kemarin yang sudah lewat tanpa scan absensi masuk
                 status = statusKalender.tidakHadir;
               }
             }
@@ -129,12 +121,12 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20.r),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Kalender Kehadiran',
             style: GoogleFonts.poppins(
-                fontSize: 18,
+                fontSize: 16.sp,
                 color: Colors.white,
                 fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF0A49B7),
@@ -144,52 +136,51 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
                 child: Column(
                   children: [
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16.r),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(40),
-                            blurRadius: 5,
+                            color: Colors.black.withAlpha(20),
+                            blurRadius: 5.r,
                             spreadRadius: 1,
                           )
                         ],
                       ),
-                      padding: const EdgeInsets.all(12.0),
+                      padding: EdgeInsets.all(10.r),
                       child: TableCalendar(
                         firstDay: DateTime.utc(2020, 1, 1),
                         lastDay: DateTime.utc(2030, 12, 31),
                         focusedDay: _focusedDay,
                         selectedDayPredicate: (day) =>
                             isSameDay(_selectedDay, day),
-                        rowHeight: 70,
-                        headerStyle: const HeaderStyle(
+                        rowHeight: 62.h,
+                        headerStyle: HeaderStyle(
                           formatButtonVisible: false,
                           titleCentered: true,
                           titleTextStyle: TextStyle(
-                              fontSize: 18,
+                              fontSize: 15.sp,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A)),
-                          leftChevronIcon:
-                              Icon(Icons.chevron_left, color: Colors.black),
-                          rightChevronIcon:
-                              Icon(Icons.chevron_right, color: Colors.black),
+                              color: const Color(0xFF0F172A)),
+                          leftChevronIcon: Icon(Icons.chevron_left,
+                              color: Colors.black, size: 22.r),
+                          rightChevronIcon: Icon(Icons.chevron_right,
+                              color: Colors.black, size: 22.r),
                         ),
-                        weekendDays: [DateTime.sunday],
-                        daysOfWeekStyle: const DaysOfWeekStyle(
+                        weekendDays: const [DateTime.sunday],
+                        daysOfWeekStyle: DaysOfWeekStyle(
                           weekdayStyle: TextStyle(
                               color: Colors.black,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12),
+                              fontSize: 11.sp),
                           weekendStyle: TextStyle(
                               color: Colors.purple,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12),
+                              fontSize: 11.sp),
                         ),
                         onPageChanged: (focusedDay) {
                           setState(() {
@@ -272,69 +263,61 @@ class _ScheduleKerjaPageState extends State<ScheduleKerjaPage> {
     Color textColor;
 
     if (customData != null) {
-      // Jika model membawa data judul jam kerja (Layer 3), tampilkan teks jam tersebut
       if (customData.title.isNotEmpty) {
         statusText = customData.title;
-        badgeColor = const Color(0xffa5d6a7); // Hijau lembut jadwal aktif
+        badgeColor = const Color(0xffa5d6a7);
         textColor = const Color(0xff2e7d32);
       } else {
-        // Jika tidak ada teks jam kerja, render status konkrit ("On Time", "Terlambat", "Tanggal Merah")
         statusText = getStatusText(customData.status);
         badgeColor = getBadgeColor(customData.status);
         textColor = getTextColor(customData.status);
       }
     } else {
-      // JIKA DATA DARI BE SAMA SEKALI TIDAK ADA (Contoh: Bulan Agustus)
-      // Dibuat kosong bersih murni mengikuti BE tanpa manipulasi kosmetik lokal
       statusText = '';
       badgeColor = Colors.transparent;
       textColor = Colors.transparent;
     }
 
     return Container(
-      margin: const EdgeInsets.all(2),
+      margin: EdgeInsets.all(1.5.r),
       decoration: isToday
           ? BoxDecoration(
               color: const Color(0xFFE0E7FF),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6.r),
             )
           : null,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          const SizedBox(height: 4),
+          SizedBox(height: 2.h),
           Text(
             '${day.day}',
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 13.sp,
               fontWeight: FontWeight.bold,
-              color:
-                  //  (customData != null &&
-                  //             customData.status == statusKalender.minggu) ||
-                  //         (customData == null && isMinggu)
-                  //     ? const Color(
-                  //         0xFF9C27B0) // Teks angka ungu murni jika terbukti hari minggu
-                  //     :
-                  Colors.black,
+              color: Colors.black,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: 2.h),
           if (statusText.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 1),
-              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: EdgeInsets.symmetric(vertical: 2.h, horizontal: 1.w),
+              margin: EdgeInsets.symmetric(horizontal: 1.w),
               decoration: BoxDecoration(
                 color: badgeColor,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(4.r),
               ),
-              child: Text(
-                statusText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 7.5,
-                  fontWeight: FontWeight.bold,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  statusText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 7.5.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
