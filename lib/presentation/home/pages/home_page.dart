@@ -36,8 +36,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   double? latitude;
   double? longitude;
 
-  // Stream untuk melacak pergerakan GPS secara real-time
   StreamSubscription<Position>? _positionStream;
+
+  // Offset waktu antara server dan HP lokal untuk mencegah kecurangan jam
+  Duration _serverTimeOffset = Duration.zero;
 
   DateTime? _parseTimeString(String timeStr) {
     if (timeStr.isEmpty) return null;
@@ -45,14 +47,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final parts = timeStr.split(':');
       final hour = int.parse(parts[0]);
       final minute = int.parse(parts[1]);
-      final now = DateTime.now();
+      final now = _currentTime;
       return DateTime(now.year, now.month, now.day, hour, minute);
     } catch (e) {
       return null;
     }
   }
 
-  // Variable & Timer untuk Jam Real-time
   late Timer _clockTimer;
   late DateTime _currentTime;
 
@@ -74,7 +75,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
-          _currentTime = DateTime.now();
+          _currentTime = DateTime.now().add(_serverTimeOffset);
         });
       }
     });
@@ -89,6 +90,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     initLocationTracking();
     _startAnimations();
+  }
+
+  void _syncServerTime(String? serverTimeIso) {
+    if (serverTimeIso != null && serverTimeIso.isNotEmpty) {
+      try {
+        final serverTime = DateTime.parse(serverTimeIso);
+        _serverTimeOffset = serverTime.difference(DateTime.now());
+        _currentTime = DateTime.now().add(_serverTimeOffset);
+      } catch (e) {
+        debugPrint('Gagal sinkronisasi waktu server: $e');
+      }
+    }
   }
 
   void _initializeAnimations() {
@@ -176,22 +189,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // Ambil lokasi cache terlebih dahulu agar tidak null sesaat
       Position? lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null && mounted) {
+      if (lastKnown != null && !lastKnown.isMocked && mounted) {
         setState(() {
           latitude = lastKnown.latitude;
           longitude = lastKnown.longitude;
         });
       }
 
-      // Ambil posisi presisi saat ini
       try {
         Position initialPos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
           timeLimit: const Duration(seconds: 5),
         );
-        if (mounted) {
+        if (!initialPos.isMocked && mounted) {
           setState(() {
             latitude = initialPos.latitude;
             longitude = initialPos.longitude;
@@ -201,7 +212,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         debugPrint('Gagal fetch current position instan: $e');
       }
 
-      // Pasang stream continuous tracking
       await _positionStream?.cancel();
       const LocationSettings locationSettings = LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -213,12 +223,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ).listen(
         (Position position) {
           if (mounted) {
-            setState(() {
-              latitude = position.latitude;
-              longitude = position.longitude;
-            });
-            debugPrint(
-                'GPS Updated: ${position.latitude}, ${position.longitude}');
+            if (!position.isMocked) {
+              setState(() {
+                latitude = position.latitude;
+                longitude = position.longitude;
+              });
+              debugPrint(
+                  'GPS Updated: ${position.latitude}, ${position.longitude}');
+            } else {
+              debugPrint('Lokasi terdeteksi mocked via stream, diabaikan.');
+            }
           }
         },
         onError: (e) {
@@ -256,7 +270,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     if (mounted) {
       setState(() {
-        _currentTime = DateTime.now();
+        _currentTime = DateTime.now().add(_serverTimeOffset);
       });
     }
   }
@@ -265,13 +279,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final bool isTablet = size.width >= 600;
-    final bool isVerySmallDevice = size.width < 340;
-    final double horizontalPadding =
-        isTablet ? 20.w : (isVerySmallDevice ? 10.w : 14.w);
-
-    // Padding bottom header yang cukup untuk menampung overlap card
-    final double headerBottomPadding = isTablet ? 90.h : 80.h;
-    final double cardTopOffset = isTablet ? 120.h : 110.h;
+    final double horizontalPadding = isTablet ? 18.w : 14.w;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F5F9),
@@ -281,69 +289,88 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         backgroundColor: const Color(0xFF0A49B7),
       ),
       body: SafeArea(
-        child: Center(
-          // Membatasi lebar konten agar di tablet tidak melar berlebihan
+        child: Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 650),
+            constraints: const BoxConstraints(maxWidth: 600),
             child: RefreshIndicator(
               onRefresh: _onRefresh,
               child: SingleChildScrollView(
-                padding: EdgeInsets.only(bottom: 30.h),
+                padding: const EdgeInsets.only(bottom: 30),
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ================= AREA HEADER & KARTU WAKTU =================
                     Stack(
-                      clipBehavior: Clip.none,
                       children: [
-                        BlocBuilder<GetUserBloc, GetUserState>(
-                          builder: (context, userState) {
-                            return userState.maybeWhen(
-                              success: (user) {
-                                _lastUser = user;
-                                return FadeTransition(
-                                  opacity: _fadeAnimation,
-                                  child: _buildHeader(
-                                    headerBottomPadding,
-                                    user,
-                                    horizontalPadding,
-                                  ),
-                                );
-                              },
-                              orElse: () {
-                                if (_lastUser != null) {
-                                  return _buildHeader(
-                                    headerBottomPadding,
-                                    _lastUser!,
-                                    horizontalPadding,
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            );
-                          },
-                        ),
+                        // Layer 1: Background Biru Melengkung
                         Positioned(
-                          left: horizontalPadding,
-                          right: horizontalPadding,
-                          top: cardTopOffset,
-                          child: SlideTransition(
-                            position: _slideAnimation,
-                            child: ScaleTransition(
-                              scale: _cardAnimation,
-                              child: _buildTimeCard(),
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: ClipPath(
+                            clipper: HeaderClipper(),
+                            child: Container(
+                              height: 225,
+                              color: const Color(0xFF0A49B7),
                             ),
+                          ),
+                        ),
+
+                        // Layer 2: Konten Vertikal Terkunci (Profil -> Chip -> Kartu Waktu)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 14),
+                              BlocBuilder<GetUserBloc, GetUserState>(
+                                builder: (context, userState) {
+                                  return userState.maybeWhen(
+                                    success: (user) {
+                                      _lastUser = user;
+                                      return FadeTransition(
+                                        opacity: _fadeAnimation,
+                                        child: _buildHeaderContent(user),
+                                      );
+                                    },
+                                    orElse: () {
+                                      if (_lastUser != null) {
+                                        return _buildHeaderContent(_lastUser!);
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  );
+                                },
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              // Kartu Waktu Jam Kerja
+                              SlideTransition(
+                                position: _slideAnimation,
+                                child: ScaleTransition(
+                                  scale: _cardAnimation,
+                                  child: _buildTimeCard(),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    // Jarak pemisah dinamis setelah header stack
-                    SizedBox(height: isTablet ? 90.h : 80.h),
+
+                    const SizedBox(height: 16),
+
+                    // ================= MENU GRID =================
                     SlideTransition(
                       position: _slideAnimation,
                       child: Padding(
                         padding:
                             EdgeInsets.symmetric(horizontal: horizontalPadding),
-                        child: _buildMenuGrid(size),
+                        child: _buildMenuGrid(),
                       ),
                     ),
                   ],
@@ -356,55 +383,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildHeader(
-      double bottomPadding, UserResponseModel user, double horizontalPadding) {
+  Widget _buildHeaderContent(UserResponseModel user) {
     final employee = user.employee;
-    return ClipPath(
-      clipper: HeaderClipper(),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.fromLTRB(
-            horizontalPadding, 14.h, horizontalPadding, bottomPadding),
-        decoration: const BoxDecoration(color: Color(0xFF0A49B7)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 50.r,
-                  height: 50.r,
-                  decoration: BoxDecoration(
-                    color: const Color(0xA1B8BBBE),
-                    borderRadius: BorderRadius.circular(25.r),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(25.r),
-                    child: Center(
-                      child: (user.avatar != null &&
-                              user.avatar!.isNotEmpty &&
-                              user.avatar!.startsWith('http'))
-                          ? Image.network(
-                              user.avatar!,
-                              width: 50.r,
-                              height: 50.r,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(
-                                    user.name != null && user.name!.isNotEmpty
-                                        ? user.name!.trim()[0].toUpperCase()
-                                        : 'U',
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontSize: 18.sp,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                          : Center(
+            Container(
+              width: 50.r,
+              height: 50.r,
+              decoration: BoxDecoration(
+                color: const Color(0xA1B8BBBE),
+                borderRadius: BorderRadius.circular(25.r),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(25.r),
+                child: Center(
+                  child: (user.avatar != null &&
+                          user.avatar!.isNotEmpty &&
+                          user.avatar!.startsWith('http'))
+                      ? Image.network(
+                          user.avatar!,
+                          width: 50.r,
+                          height: 50.r,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
                               child: Text(
                                 user.name != null && user.name!.isNotEmpty
                                     ? user.name!.trim()[0].toUpperCase()
@@ -415,94 +420,116 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
+                            );
+                          },
+                        )
+                      : Center(
+                          child: Text(
+                            user.name != null && user.name!.isNotEmpty
+                                ? user.name!.trim()[0].toUpperCase()
+                                : 'U',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.w700,
                             ),
-                    ),
-                  ),
-                ),
-                SpaceWidth(12.w),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Selamat datang 👋',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.8),
+                          ),
                         ),
-                      ),
-                      Text(
-                        user.name != null && user.name!.isNotEmpty
-                            ? user.name!.split(' ').take(2).join(' ')
-                            : '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          height: 1.1,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        employee?.nameProduct ?? '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
                 ),
-                InkWell(
-                  onTap: () {
-                    context.push(const NotifikasiPage());
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(6.r),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Badge(
-                      offset: Offset(6.w, -6.h),
-                      backgroundColor: Colors.red,
-                      label: Text("3", style: TextStyle(fontSize: 10.sp)),
-                      textColor: Colors.white,
-                      child: Icon(
-                        Icons.notifications_outlined,
-                        size: 24.r,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-            SpaceHeight(14.h),
-            Wrap(
-              spacing: 8.w,
-              runSpacing: 8.h,
-              children: [
-                _buildHeaderChip(Icons.badge_rounded, user.roleLabel ?? ''),
-                _buildHeaderChip(
-                    Icons.apartment_rounded, employee?.nameDivision ?? ''),
-                _buildHeaderChip(
-                    Icons.business_rounded, employee?.namePosition ?? ''),
-              ],
+            SpaceWidth(12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selamat datang 👋',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  Text(
+                    user.name != null && user.name!.isNotEmpty
+                        ? user.name!.split(' ').take(2).join(' ')
+                        : '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    employee?.nameProduct ?? '',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            InkWell(
+              onTap: () {
+                context.push(const NotifikasiPage());
+              },
+              child: Container(
+                padding: EdgeInsets.all(6.r),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20.r),
+                ),
+                child: Badge(
+                  offset: Offset(6.w, -6.h),
+                  backgroundColor: Colors.red,
+                  label: Text("3", style: TextStyle(fontSize: 10.sp)),
+                  textColor: Colors.white,
+                  child: Icon(
+                    Icons.notifications_outlined,
+                    size: 24.r,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8.w,
+          runSpacing: 8,
+          children: [
+            _buildHeaderChip(Icons.badge_rounded, user.roleLabel ?? ''),
+            _buildHeaderChip(
+                Icons.apartment_rounded, employee?.nameDivision ?? ''),
+            _buildHeaderChip(
+                Icons.business_rounded, employee?.namePosition ?? ''),
+          ],
+        ),
+      ],
     );
   }
 
   Widget _buildTimeCard() {
-    return BlocBuilder<IsCheckedinBloc, IsCheckedinState>(
+    return BlocConsumer<IsCheckedinBloc, IsCheckedinState>(
+      listener: (context, state) {
+        state.maybeWhen(
+          success: (data) {
+            if (data is Map<String, dynamic>) {
+              _syncServerTime(data['server_time']?.toString());
+            }
+          },
+          orElse: () {},
+        );
+      },
       builder: (context, checkedInState) {
         final Map<String, dynamic> absenceTodayData = checkedInState.maybeWhen(
           success: (absenceData) =>
@@ -546,7 +573,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return Container(
           padding: EdgeInsets.symmetric(
             horizontal: 14.w,
-            vertical: 14.h,
+            vertical: 14,
           ),
           decoration: BoxDecoration(
             color: const Color(0xFFFDFDFE),
@@ -559,7 +586,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               BoxShadow(
                 color: const Color(0xFF1B2D78).withOpacity(0.08),
                 blurRadius: 16.r,
-                offset: Offset(0, 8.h),
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -581,7 +608,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             color: const Color(0xFF8A94B4),
                           ),
                         ),
-                        SpaceHeight(2.h),
+                        const SizedBox(height: 2),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
@@ -594,7 +621,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                        SpaceHeight(2.h),
+                        const SizedBox(height: 2),
                         Text(
                           _currentTime.toFormattedDate(),
                           style: GoogleFonts.poppins(
@@ -608,7 +635,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   Container(
                     width: 1,
-                    height: 48.h,
+                    height: 48,
                     color: const Color(0xFFE2E6F3),
                     margin: EdgeInsets.symmetric(horizontal: 10.w),
                   ),
@@ -625,7 +652,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             color: const Color(0xFF8A94B4),
                           ),
                         ),
-                        SpaceHeight(2.h),
+                        const SizedBox(height: 2),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
@@ -637,7 +664,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                        SpaceHeight(2.h),
+                        const SizedBox(height: 2),
                         Text(
                           shiftName,
                           style: GoogleFonts.poppins(
@@ -653,7 +680,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              Divider(thickness: 1, height: 18.h),
+              const Divider(thickness: 1, height: 18),
               if (alreadyCheckedIn)
                 Text(
                   'Anda sudah Check In pukul: $checkInJam. Checkout aktif 10 mnt sebelum $jadwalClockOut',
@@ -693,14 +720,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMenuGrid(Size screenSize) {
-    final bool isWide = screenSize.width >= 550;
-    final int crossAxisCount = isWide ? 4 : 2;
-
-    // Rasio aspek disesuaikan agar tinggi container pas dan simetris
-    final double quickActionAspectRatio = isWide ? 1.35 : 1.35;
-    final double serviceCardAspectRatio = isWide ? 1.28 : 1.25;
-
+  Widget _buildMenuGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -712,20 +732,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             color: const Color(0xFF1B2D78),
           ),
         ),
-        SpaceHeight(10.h),
+        const SizedBox(height: 10),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: 2,
           crossAxisSpacing: 10.w,
-          mainAxisSpacing: 10.h,
-          childAspectRatio: quickActionAspectRatio,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.45,
           children: [
             _buildAttendanceButton(isCheckIn: true),
             _buildAttendanceButton(isCheckIn: false),
           ],
         ),
-        SpaceHeight(16.h),
+        const SizedBox(height: 16),
         Text(
           'Layanan Karyawan',
           style: GoogleFonts.poppins(
@@ -734,15 +754,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             color: const Color(0xFF1B2D78),
           ),
         ),
-        SpaceHeight(10.h),
-        // Menggunakan GridView agar semua kartu Layanan Karyawan otomatis seragam tingginya
+        const SizedBox(height: 10),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
+          crossAxisCount: 2,
           crossAxisSpacing: 10.w,
-          mainAxisSpacing: 10.h,
-          childAspectRatio: serviceCardAspectRatio,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.35,
           children: [
             _buildReusableMenuCard(
               icon: Icons.event_busy_rounded,
@@ -861,6 +880,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     required String? polygonRaw,
   }) async {
     try {
+      // 1. Cek status registrasi wajah terlebih dahulu
       final faceStatusResult =
           await AttendanceRemoteDatasource().checkFaceRegistrationStatus();
       final isRegistered =
@@ -871,46 +891,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      if (latitude == null || longitude == null) {
-        try {
-          Position pos = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.high,
-            timeLimit: const Duration(seconds: 5),
-          );
-          latitude = pos.latitude;
-          longitude = pos.longitude;
-        } catch (e) {
-          Position? lastKnown = await Geolocator.getLastKnownPosition();
-          if (lastKnown != null) {
-            latitude = lastKnown.latitude;
-            longitude = lastKnown.longitude;
+      // 2. Ambil posisi GPS terbaru dan lakukan validasi langsung
+      Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 8),
+        );
+      } catch (e) {
+        // Coba fallback ke lastKnownPosition jika gagal dapat sinyal fresh
+        final lastKnown = await Geolocator.getLastKnownPosition();
+        if (lastKnown != null) {
+          position = lastKnown;
+        } else {
+          if (mounted) {
+            _showModernDialog(
+              'Lokasi Belum Siap',
+              'Gagal mendapatkan sinyal GPS. Pastikan GPS HP aktif dengan mode akurasi tinggi lalu coba kembali.',
+              Icons.location_off_rounded,
+              Colors.orange,
+            );
           }
+          return;
         }
       }
 
-      if (latitude == null || longitude == null) {
-        if (mounted) {
-          _showModernDialog(
-            'Lokasi Belum Siap',
-            'Sedang mencari sinyal GPS. Pastikan GPS aktif dengan akurasi tinggi lalu coba kembali.',
-            Icons.location_off_rounded,
-            Colors.orange,
-          );
-        }
+      // 3. Wajib tolak jika lokasi terdeteksi Fake GPS (Mocked)
+      if (position.isMocked) {
+        _showFakeGpsDialog();
         return;
       }
 
-      try {
-        final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 3),
-        );
-        if (position.isMocked) {
-          _showFakeGpsDialog();
-          return;
-        }
-      } catch (_) {}
+      // Update state koordinat dengan koordinat yang sudah lolos uji keaslian
+      latitude = position.latitude;
+      longitude = position.longitude;
 
+      // 4. Validasi Radius Polygon Lokasi Kantor
       final List<List<double>> polygonPoints =
           RadiusCalculate.parsePolygon(polygonRaw);
 
@@ -930,6 +946,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         }
       }
 
+      // 5. Lanjut ke Face Detection jika semua validasi lolos
       _navigateToAttendance('polygon_based', isCheckIn, idSchedule);
     } catch (e) {
       if (mounted) {
@@ -987,7 +1004,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   size: 36.r,
                 ),
               ),
-              SpaceHeight(16.h),
+              const SizedBox(height: 16),
               Text(
                 'Absensi Gagal',
                 style: GoogleFonts.poppins(
@@ -996,7 +1013,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   color: Colors.red,
                 ),
               ),
-              SpaceHeight(8.h),
+              const SizedBox(height: 8),
               Text(
                 'Anda berada di luar area lokasi kantor yang telah ditentukan.',
                 style: GoogleFonts.poppins(
@@ -1006,10 +1023,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 textAlign: TextAlign.center,
               ),
-              SpaceHeight(20.h),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
-                height: 42.h,
+                height: 42,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -1066,7 +1083,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             BoxShadow(
               color: const Color(0xFF1B2D78).withOpacity(0.05),
               blurRadius: 10.r,
-              offset: Offset(0, 4.h),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -1085,7 +1102,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 child: Icon(icon, color: Colors.white, size: 22.r),
               ),
-              SpaceHeight(8.h),
+              const SizedBox(height: 8),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
@@ -1118,7 +1135,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       onTap: onPressed,
       borderRadius: BorderRadius.circular(16.r),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(16.r),
@@ -1126,7 +1143,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             BoxShadow(
               color: const Color(0xFF1B2D78).withOpacity(0.05),
               blurRadius: 6.r,
-              offset: Offset(0, 3.h),
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -1134,7 +1151,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Icon Kotak Atas
             Container(
               padding: EdgeInsets.all(8.r),
               decoration: BoxDecoration(
@@ -1143,8 +1159,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               child: Icon(icon, color: Colors.white, size: 22.r),
             ),
-
-            // Bagian Bawah: Judul, Subtitle & Icon Panah
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -1159,13 +1173,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SpaceHeight(4.h),
+                const SizedBox(height: 4),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Sisi Kiri: Subtitle
                     Expanded(
-                      flex: 65,
                       child: Text(
                         subtitle,
                         style: GoogleFonts.poppins(
@@ -1173,25 +1185,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           color: Colors.black87,
                           height: 1.2,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-
-                    Expanded(
-                      flex: 35,
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: Container(
-                          padding: EdgeInsets.all(8.r),
-                          decoration: BoxDecoration(
-                            color: themeColor.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 10.r,
-                            color: themeColor,
-                          ),
-                        ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: EdgeInsets.all(6.r),
+                      decoration: BoxDecoration(
+                        color: themeColor.withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 10.r,
+                        color: themeColor,
                       ),
                     ),
                   ],
@@ -1223,16 +1231,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(50.r)),
                 child: Icon(icon, color: color, size: 28.r),
               ),
-              SpaceHeight(14.h),
+              const SizedBox(height: 14),
               Text(title,
                   style: GoogleFonts.poppins(
                       fontSize: 16.sp, fontWeight: FontWeight.w600)),
-              SpaceHeight(6.h),
+              const SizedBox(height: 6),
               Text(message,
                   style: GoogleFonts.poppins(
                       fontSize: 13.sp, color: Colors.grey[600]),
                   textAlign: TextAlign.center),
-              SpaceHeight(20.h),
+              const SizedBox(height: 20),
               ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   child:
@@ -1258,11 +1266,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Text('Registrasi Wajah Diperlukan',
                   style: GoogleFonts.poppins(
                       fontSize: 16.sp, fontWeight: FontWeight.w600)),
-              SpaceHeight(10.h),
+              const SizedBox(height: 10),
               Text('Anda belum mendaftarkan wajah. Daftarkan sekarang?',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(fontSize: 12.sp)),
-              SpaceHeight(20.h),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   TextButton(
@@ -1299,7 +1307,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildHeaderChip(IconData icon, String text) {
     if (text.isEmpty) return const SizedBox.shrink();
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4),
       decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.12),
           borderRadius: BorderRadius.circular(14.r)),
@@ -1307,7 +1315,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12.r, color: Colors.white),
-          SpaceWidth(4.w),
+          const SizedBox(width: 4),
           Text(text,
               style: GoogleFonts.poppins(
                   fontSize: 10.sp,

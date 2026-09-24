@@ -21,6 +21,20 @@ class PengaduanPage extends StatefulWidget {
 class _PengaduanPageState extends State<PengaduanPage> {
   final TextEditingController kodeController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    // 🌟 Reset hasil pencarian setiap kali halaman ini dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _resetPencarian();
+    });
+  }
+
+  void _resetPencarian() {
+    kodeController.clear();
+    context.read<PengaduanBloc>().add(ResetPengaduanSearchEvent());
+  }
+
   void _cariPengaduan() {
     final kode = kodeController.text.trim();
 
@@ -45,6 +59,17 @@ class _PengaduanPageState extends State<PengaduanPage> {
         );
   }
 
+  void _keluarHalaman() {
+    _resetPencarian();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainPage(),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   void dispose() {
     kodeController.dispose();
@@ -60,14 +85,7 @@ class _PengaduanPageState extends State<PengaduanPage> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MainPage(),
-          ),
-          (route) => false,
-        );
+        _keluarHalaman();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -84,15 +102,7 @@ class _PengaduanPageState extends State<PengaduanPage> {
             ),
           ),
           leading: IconButton(
-            onPressed: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const MainPage(),
-                ),
-                (route) => false,
-              );
-            },
+            onPressed: _keluarHalaman,
             icon: Icon(
               Icons.keyboard_arrow_left,
               size: 26.r,
@@ -103,7 +113,6 @@ class _PengaduanPageState extends State<PengaduanPage> {
         backgroundColor: const Color(0xFFE7EAEC),
         body: SafeArea(
           child: Center(
-            // Menjaga tampilan di tablet tetap rapi dan tidak melar
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 650),
               child: Padding(
@@ -368,7 +377,8 @@ class _PengaduanPageState extends State<PengaduanPage> {
                                       current is CariPengaduanLoading ||
                                       current is CariPengaduanSuccess ||
                                       current is CariPengaduanNotFound ||
-                                      current is CariPengaduanFailure,
+                                      current is CariPengaduanFailure ||
+                                      current is PengaduanInitial,
                                   builder: (context, state) {
                                     if (state is CariPengaduanLoading) {
                                       return const Center(
@@ -385,8 +395,7 @@ class _PengaduanPageState extends State<PengaduanPage> {
                                           alignment: Alignment.topCenter,
                                           child: RiwayatPengaduanCard(
                                             code: item.kodePengaduan,
-                                            tanggal: item.tanggalPengaduan ??
-                                                DateTime.now(),
+                                            tanggal: item.tanggalPengaduan,
                                             status: item.status,
                                             pengaduan: item,
                                           ),

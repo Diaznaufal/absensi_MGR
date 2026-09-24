@@ -10,6 +10,11 @@ class PengaduanBloc extends Bloc<PengaduanEvent, PengaduanState> {
   final PengaduanRemoteDatasource datasource;
 
   PengaduanBloc(this.datasource) : super(PengaduanInitial()) {
+    // Handler untuk mereset pencarian saat keluar halaman
+    on<ResetPengaduanSearchEvent>((event, emit) {
+      emit(PengaduanInitial());
+    });
+
     on<GetProductsEvent>((event, emit) async {
       emit(GetProductsLoading());
 
@@ -82,24 +87,17 @@ class PengaduanBloc extends Bloc<PengaduanEvent, PengaduanState> {
 
             final pengaduan = PengaduanModel(
               kodePengaduan: data.kode ?? '',
-
               area: '',
-
               kategori: _parseKategori(
                 data.kategori,
               ),
-
               judul: data.judul ?? '',
-
               isi: data.pesan ?? '',
-
               lampiran: const [],
-
               // Backend mengirim angka status
               status: _parseStatusPengaduan(
                 data.status,
               ),
-
               // Backend mengirim "06-07-2026"
               tanggalPengaduan: _parseTanggal(
                 data.tanggal,
@@ -143,24 +141,22 @@ statusPengaduan _parseStatusPengaduan(
   switch (status?.toLowerCase().trim()) {
     case '1':
     case 'menunggu':
-    case 'Menunggu Diproses':
+    case 'menunggu diproses':
     case 'menunggu verifikasi':
       return statusPengaduan.menunggu;
 
     case '2':
-    case 'Sedang Diproses':
+    case 'sedang diproses':
     case 'dalam proses':
     case 'diproses':
       return statusPengaduan.dalamProses;
 
     case '3':
     case 'selesai':
-    case 'Selesai':
       return statusPengaduan.selesai;
 
     case '4':
     case 'tidak selesai':
-    case 'Tidak Selesai':
       return statusPengaduan.tidakselesai;
 
     default:

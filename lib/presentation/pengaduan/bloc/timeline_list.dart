@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/model/pengaduan_model.dart';
 import 'package:flutter_absensi_app/presentation/pengaduan/model/timeline_model.dart';
 
-List<TimelineData> buildTimeline(
-  PengaduanModel pengaduan,
-) {
-  const blueColor = Color(0xFF3B82F6);
+List<TimelineData> buildTimeline(PengaduanModel pengaduan) {
+  const Color colorMenunggu = Color(0xFFF59E0B);
+  const Color colorProses = Color(0xFF3B82F6);
+  const Color colorSelesai = Color(0xFF009236);
+  const Color colorTidakSelesai = Color(0xFFF10000);
 
   switch (pengaduan.status) {
     // =========================================
-    // STATUS 1 = MENUNGGU
+    // STATUS 1 = MENUNGGU DIPROSES
     // =========================================
     case statusPengaduan.menunggu:
       return [
@@ -18,24 +19,24 @@ List<TimelineData> buildTimeline(
           description: 'Laporan Diterima',
           date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorMenunggu,
         ),
         const TimelineData(
           title: 'Dalam Proses',
           description: 'Sedang Ditinjau Tim Teknis',
           isActive: false,
-          color: blueColor,
+          color: colorProses,
         ),
         const TimelineData(
           title: 'Selesai',
           description: 'Masalah Teratasi dan Kasus Ditutup',
           isActive: false,
-          color: blueColor,
+          color: colorSelesai,
         ),
       ];
 
     // =========================================
-    // STATUS 2 = DALAM PROSES
+    // STATUS 2 = SEDANG DIPROSES
     // =========================================
     case statusPengaduan.dalamProses:
       return [
@@ -44,19 +45,20 @@ List<TimelineData> buildTimeline(
           description: 'Laporan Diterima',
           date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorMenunggu,
         ),
-        const TimelineData(
+        TimelineData(
           title: 'Dalam Proses',
           description: 'Sedang Ditinjau Tim Teknis',
+          date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorProses,
         ),
         const TimelineData(
           title: 'Selesai',
           description: 'Masalah Teratasi dan Kasus Ditutup',
           isActive: false,
-          color: blueColor,
+          color: colorSelesai,
         ),
       ];
 
@@ -70,29 +72,26 @@ List<TimelineData> buildTimeline(
           description: 'Laporan Diterima',
           date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorMenunggu,
         ),
-        const TimelineData(
+        TimelineData(
           title: 'Dalam Proses',
           description: 'Sedang Ditinjau Tim Teknis',
+          date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorProses,
         ),
-        const TimelineData(
+        TimelineData(
           title: 'Selesai',
           description: 'Masalah Teratasi dan Kasus Ditutup',
+          date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorSelesai,
         ),
       ];
 
     // =========================================
     // STATUS 4 = TIDAK SELESAI
-    //
-    // Sesuai alur kamu:
-    // Menunggu -> Dalam Proses -> Tidak Selesai
-    //
-    // "Selesai" tidak ditampilkan sama sekali.
     // =========================================
     case statusPengaduan.tidakselesai:
       return [
@@ -101,19 +100,21 @@ List<TimelineData> buildTimeline(
           description: 'Laporan Diterima',
           date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorMenunggu,
         ),
-        const TimelineData(
+        TimelineData(
           title: 'Dalam Proses',
           description: 'Sedang Ditinjau Tim Teknis',
+          date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: blueColor,
+          color: colorProses,
         ),
-        const TimelineData(
+        TimelineData(
           title: 'Tidak Selesai',
           description: 'Pengaduan Tidak Dapat Diselesaikan',
+          date: pengaduan.tanggalPengaduan,
           isActive: true,
-          color: Colors.red,
+          color: colorTidakSelesai,
         ),
       ];
   }

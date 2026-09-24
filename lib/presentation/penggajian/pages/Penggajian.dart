@@ -48,44 +48,59 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
             constraints: const BoxConstraints(maxWidth: 600),
             child: Column(
               children: [
-                // ==================== AREA FIXED / STATIS ====================
+                // ==================== AREA HEADER & KARTU GAJI ====================
                 Stack(
-                  clipBehavior: Clip.none,
                   children: [
-                    _buildHeader(),
+                    // Layer 1: Background Biru Statis Terukur
                     Positioned(
-                      left: 12.w,
-                      right: 12.w,
-                      top: 87.h,
-                      child: BlocBuilder<DashboardPayrollBloc,
-                          DashboardPayrollState>(
-                        builder: (context, state) {
-                          if (state is DashboardPayrollLoading) {
-                            return Container(
-                              height: 180.h,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                              child: const CircularProgressIndicator(),
-                            );
-                          } else if (state is DashboardPayrollLoaded) {
-                            return _gajiKaryawan(state.data);
-                          } else if (state is DashboardPayrollError) {
-                            return _buildErrorCard(state.message);
-                          }
-                          return const SizedBox.shrink();
-                        },
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 160,
+                        color: const Color(0xFF0A49B7),
+                      ),
+                    ),
+
+                    // Layer 2: Konten Vertikal Terkunci (Header Teks -> Kartu Gaji)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
+                          _buildHeader(),
+                          const SizedBox(height: 14), // Jarak terkunci permanen
+                          BlocBuilder<DashboardPayrollBloc,
+                              DashboardPayrollState>(
+                            builder: (context, state) {
+                              if (state is DashboardPayrollLoading) {
+                                return Container(
+                                  height: 175,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14.r),
+                                  ),
+                                  child: const CircularProgressIndicator(),
+                                );
+                              } else if (state is DashboardPayrollLoaded) {
+                                return _gajiKaryawan(state.data);
+                              } else if (state is DashboardPayrollError) {
+                                return _buildErrorCard(state.message);
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
 
-                // Spacer untuk mengompensasi overlap card gaji
-                SizedBox(height: 120.h),
+                const SizedBox(height: 12),
 
-                // Bagian Ringkasan Bulan Ini (Statis)
+                // Bagian Ringkasan Bulan Ini
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12.w),
                   child:
@@ -99,9 +114,9 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                   ),
                 ),
 
-                SizedBox(height: 12.h),
+                const SizedBox(height: 12),
 
-                // ==================== AREA SCROLLABLE (HANYA RIWAYAT) ====================
+                // ==================== AREA SCROLLABLE (RIWAYAT) ====================
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -135,50 +150,47 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 65.h),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0A49B7),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Penggajian',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 18.sp,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Penggajian',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18.sp,
           ),
-          SizedBox(height: 6.h),
-          RichText(
-            text: TextSpan(
-              style: TextStyle(color: Colors.black, fontSize: 13.sp),
-              children: [
-                TextSpan(
-                  text: 'Hallo, ',
-                  style:
-                      GoogleFonts.poppins(color: Colors.white, fontSize: 13.sp),
+        ),
+        const SizedBox(height: 4),
+        RichText(
+          text: TextSpan(
+            style: TextStyle(color: Colors.black, fontSize: 13.sp),
+            children: [
+              TextSpan(
+                text: 'Hallo, ',
+                style:
+                    GoogleFonts.poppins(color: Colors.white, fontSize: 13.sp),
+              ),
+              TextSpan(
+                text: 'Karyawan 👋',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.sp,
                 ),
-                TextSpan(
-                  text: 'Karyawan 👋',
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13.sp,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Text(
-            'Berikut informasi gaji anda',
-            style: GoogleFonts.poppins(color: Colors.white, fontSize: 11.sp),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Berikut informasi gaji anda',
+          style: GoogleFonts.poppins(
+            color: Colors.white.withOpacity(0.85),
+            fontSize: 11.sp,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -226,7 +238,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w600),
                     ),
-                    SizedBox(height: 2.h),
+                    const SizedBox(height: 2),
                     Text(
                       labelBulan,
                       style: GoogleFonts.poppins(
@@ -234,7 +246,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                           fontSize: 11.sp,
                           fontWeight: FontWeight.w600),
                     ),
-                    SizedBox(height: 10.h),
+                    const SizedBox(height: 8),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
@@ -244,12 +256,12 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                             fontSize: 24.sp, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    SizedBox(height: 6.h),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Icon(Icons.calendar_today,
                             size: 11.r, color: Colors.grey.shade600),
-                        SizedBox(width: 4.w),
+                        const SizedBox(width: 4),
                         Text(
                           labelTanggal,
                           style: GoogleFonts.poppins(
@@ -262,7 +274,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                   ],
                 ),
               ),
-              SizedBox(width: 8.w),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -281,7 +293,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                           fontWeight: FontWeight.w600),
                     ),
                   ),
-                  SizedBox(height: 8.h),
+                  const SizedBox(height: 8),
                   Image.asset(
                     "assets/images/Wallet.png",
                     width: 75.r,
@@ -291,7 +303,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
               )
             ],
           ),
-          SizedBox(height: 8.h),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: data.idPayrollComponent == null
                 ? null
@@ -310,7 +322,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                     });
                   },
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 4.h, horizontal: 6.w),
+              padding: EdgeInsets.symmetric(vertical: 6.h, horizontal: 8.w),
               decoration: BoxDecoration(
                   color: data.idPayrollComponent == null
                       ? Colors.grey.shade200
@@ -330,7 +342,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                       size: 16.r,
                     ),
                   ),
-                  SizedBox(width: 8.w),
+                  const SizedBox(width: 8),
                   Text(
                     "Lihat Slip Gaji",
                     style: GoogleFonts.poppins(
@@ -363,13 +375,13 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
               fontSize: 13.sp,
               fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 8.h),
+        const SizedBox(height: 8),
         GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             crossAxisSpacing: 10.w,
-            mainAxisSpacing: 10.h,
+            mainAxisSpacing: 10,
             childAspectRatio: 3.1,
             children: [
               _buildTotalPenghasilan(
@@ -383,9 +395,9 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                   subtitle: totalPotongan,
                   color: const Color(0x9CFFDBE2))
             ]),
-        SizedBox(height: 6.h),
+        const SizedBox(height: 6),
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 6.h),
           decoration: BoxDecoration(
               color: const Color(0xFFD7E4FF),
               borderRadius: BorderRadius.circular(8.r)),
@@ -393,7 +405,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
             children: [
               Icon(Icons.info_outline,
                   size: 16.r, color: const Color(0xFF0151E7)),
-              SizedBox(width: 8.w),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   "Rincian penghasilan, potongan, dan perhitungan lengkap bisa dilihat di slip gaji.",
@@ -418,7 +430,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
           style:
               GoogleFonts.poppins(fontSize: 13.sp, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 8.h),
+        const SizedBox(height: 8),
         Expanded(
           child: history.isEmpty
               ? Container(
@@ -428,9 +440,9 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                 )
               : ListView.separated(
                   physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.only(bottom: 5.h),
+                  padding: const EdgeInsets.only(bottom: 10),
                   itemCount: history.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 8.h),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, index) {
                     final item = history[index];
 
@@ -490,7 +502,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
             ),
             child: Icon(icon, color: const Color(0xFF1F8B4D), size: 16.r),
           ),
-          SizedBox(width: 6.w),
+          const SizedBox(width: 6),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -505,7 +517,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                         fontSize: 9.sp, fontWeight: FontWeight.w500),
                   ),
                 ),
-                SizedBox(height: 2.h),
+                const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -546,7 +558,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
             ),
             child: Icon(icon, color: Colors.red, size: 16.r),
           ),
-          SizedBox(width: 6.w),
+          const SizedBox(width: 6),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -561,7 +573,7 @@ class _RingkasanKerjaState extends State<RingkasanKerja> {
                         fontSize: 9.sp, fontWeight: FontWeight.w500),
                   ),
                 ),
-                SizedBox(height: 2.h),
+                const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,

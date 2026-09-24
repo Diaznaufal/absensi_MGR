@@ -33,3 +33,8 @@ class CariPengaduanByKodeEvent extends PengaduanEvent {
     required this.kodePengaduan,
   });
 }
+
+// =============================
+// RESET HASIL PENCARIAN PENGADUAN
+// =============================
+class ResetPengaduanSearchEvent extends PengaduanEvent {}

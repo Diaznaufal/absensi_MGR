@@ -457,8 +457,20 @@ class _LeavePageState extends State<LeavePage> {
       cleanReason = cleanReason.split('] ').last;
     }
 
-    final String dateDisplay =
-        '${formatter.format(leave.startDate)}${leave.endDate != null ? ' - ${formatter.format(leave.endDate!)}' : ''}';
+    // Tentukan tanggal akhir: jika backend tidak mengirim endDate tapi totalDays > 1,
+    // hitung otomatis berdasarkan total hari.
+    DateTime resolvedEndDate = leave.endDate ??
+        (leave.totalDays > 1
+            ? leave.startDate.add(Duration(days: leave.totalDays - 1))
+            : leave.startDate);
+
+    final bool isSameDay = resolvedEndDate.year == leave.startDate.year &&
+        resolvedEndDate.month == leave.startDate.month &&
+        resolvedEndDate.day == leave.startDate.day;
+
+    final String dateDisplay = (!isSameDay && leave.totalDays > 1)
+        ? '${formatter.format(leave.startDate)} – ${formatter.format(resolvedEndDate)}'
+        : formatter.format(leave.startDate);
 
     return _buildUnifiedCard(
       title: leave.leaveType.isNotEmpty ? leave.leaveType : 'Cuti Karyawan',
@@ -498,7 +510,7 @@ class _LeavePageState extends State<LeavePage> {
     }
 
     final String dateDisplay =
-        '${formatter.format(izin.tanggalIzin)}${izin.endDate != null ? ' - ${formatter.format(izin.endDate!)}' : ''}';
+        '${formatter.format(izin.tanggalIzin)}${izin.endDate != null ? ' – ${formatter.format(izin.endDate!)}' : ''}';
 
     return _buildUnifiedCard(
       title: izin.alasanIzin,
